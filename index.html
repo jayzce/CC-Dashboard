@@ -373,14 +373,33 @@
         // === SALES (Month on Month, €) ===
         const salesPairs = Object.entries(data.sales||{}).sort(([a],[b])=> a.localeCompare(b)); // yyyy-MM
         const salesRows = [['Month','Sales (€)']];
-        salesPairs.forEach(([m,v])=> salesRows.push([m, Number(v)||0]));
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        
+        salesPairs.forEach(([dateKey, value]) => {
+          // Check if the dateKey has a month component (e.g., '2024-05')
+          if (dateKey.includes('-')) {
+            const [year, month] = dateKey.split('-');
+            const monthIndex = parseInt(month, 10) - 1; // Month is 0-indexed in JS
+            const monthName = monthNames[monthIndex];
+            // If all years are selected, show 'Month Year'. Otherwise, just show the 'Month Name'.
+            const label = selectedYear === 'all' ? `${monthName} ${year}` : monthName;
+            salesRows.push([label, Number(value) || 0]);
+          } else {
+            // This fallback handles a case where only a year might be sent.
+            salesRows.push([dateKey, Number(value) || 0]);
+          }
+        });
+        
         const salesDT = google.visualization.arrayToDataTable(salesRows);
         const currencyFormatter = new google.visualization.NumberFormat({prefix:'€', groupingSymbol:',', fractionDigits:0});
         currencyFormatter.format(salesDT, 1);
 
         const salesChart = new google.visualization.PieChart(document.getElementById('sales_chart'));
         salesChart.draw(salesDT, {
-          title:'Total Sales by Month (€)',
+          title:'Sales by Month',
+          titleTextStyle: {
+            color: '#e6e9f2' // This is the var(--ink) color
+          },
           legend:{position:'bottom', textStyle:{color:'#cbd5e1'}},
           backgroundColor:'transparent',
           is3D: true,
@@ -399,10 +418,12 @@
         const geoDT = google.visualization.arrayToDataTable(geoRows);
         const geoChart = new google.visualization.GeoChart(document.getElementById('heatmap_chart'));
         geoChart.draw(geoDT, {
-          backgroundColor:'white',
+          // === CHANGES START HERE ===
+          backgroundColor:'transparent',
           colorAxis:{ colors:['#63d2ff', '#ffdd55'] },
           datalessRegionColor:'#f0f0f0',
-          legend:{ textStyle:{color:'#333'} }
+          legend:{ textStyle:{color:'#e6e9f2'} }
+          // === CHANGES END HERE ===
         });
 
       }catch(err){
