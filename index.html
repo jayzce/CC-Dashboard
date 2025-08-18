@@ -93,10 +93,14 @@
       -webkit-appearance: none;
       -moz-appearance: none;
       appearance: none;
+      background: rgba(255,255,255,.06); /* UPDATED FOR DARKER BACKGROUND */
       background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="%23e6e9f2"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>');
       background-repeat: no-repeat;
       background-position: right 1.25rem center;
       padding-right: 3rem;
+    }
+    #lost-calls-card .num {
+        font-weight: normal; /* ADDED RULE TO UN-BOLD THE NUMBERS */
     }
   </style>
 </head>
@@ -186,7 +190,7 @@
         </div>
       </div>
       <!-- Lost Calls -->
-      <div class="card">
+      <div class="card" id="lost-calls-card"> <!-- ADDED ID TO TARGET FONT WEIGHT -->
         <h3>Lost Calls (Opportunities)</h3>
         <div class="metric">
           <span class="label">Daily</span>
