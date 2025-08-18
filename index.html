@@ -93,18 +93,51 @@
       -webkit-appearance: none;
       -moz-appearance: none;
       appearance: none;
-      background: rgba(255,255,255,.06); /* UPDATED FOR DARKER BACKGROUND */
+      background: rgba(255,255,255,.06);
       background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="%23e6e9f2"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>');
       background-repeat: no-repeat;
       background-position: right 1.25rem center;
       padding-right: 3rem;
     }
     #lost-calls-card .num {
-        font-weight: normal; /* ADDED RULE TO UN-BOLD THE NUMBERS */
+        font-weight: normal;
+    }
+    
+    /* Loading indicator */
+    .loading {
+      text-align: center;
+      color: var(--muted);
+      padding: 20px;
+    }
+    
+    /* Status indicator */
+    .status {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 8px 16px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      z-index: 1000;
+    }
+    .status.loading {
+      background: var(--warn);
+      color: white;
+    }
+    .status.success {
+      background: var(--good);
+      color: white;
+    }
+    .status.error {
+      background: var(--bad);
+      color: white;
     }
   </style>
 </head>
 <body>
+  <div id="status" class="status" style="display: none;"></div>
+  
   <div class="wrap">
     <h1>Operations Dashboard</h1>
     <div class="sub">Answer & Abandon Rates • Team Sales (EUR) • Global Call Heatmap</div>
@@ -190,7 +223,7 @@
         </div>
       </div>
       <!-- Lost Calls -->
-      <div class="card" id="lost-calls-card"> <!-- ADDED ID TO TARGET FONT WEIGHT -->
+      <div class="card" id="lost-calls-card">
         <h3>Lost Calls (Opportunities)</h3>
         <div class="metric">
           <span class="label">Daily</span>
@@ -226,12 +259,26 @@
     
     // Store the currently active team and slicer selections
     let activeTeam = null;
-    let selectedYear = new Date().getFullYear();
+    let selectedYear = 'all';
     let selectedMonth = 'all';
 
     // ===== GOOGLE CHARTS LOAD =====
     google.charts.load('current', { packages: ['corechart','geochart'] });
     google.charts.setOnLoadCallback(() => init());
+
+    // ===== STATUS INDICATOR =====
+    function showStatus(message, type = 'loading') {
+      const status = document.getElementById('status');
+      status.textContent = message;
+      status.className = `status ${type}`;
+      status.style.display = 'block';
+      
+      if (type !== 'loading') {
+        setTimeout(() => {
+          status.style.display = 'none';
+        }, 3000);
+      }
+    }
 
     // ===== UTILS =====
     const clamp = (n,min,max)=>Math.max(min,Math.min(max,n));
@@ -320,6 +367,8 @@
 
     async function init(){
       try{
+        showStatus('Loading data...', 'loading');
+        
         let url = APP_URL;
         const params = new URLSearchParams();
         if (activeTeam) params.append('team', activeTeam);
@@ -330,15 +379,24 @@
           url += `?${params.toString()}`;
         }
         
+        console.log('Fetching from URL:', url);
         const res = await fetch(url);
+        
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+        
         const data = await res.json();
+        console.log('Received data:', data);
         
         // Check for error from Apps Script
         if (data.error) {
-            console.error(data.error);
-            alert('Failed to load dashboard data: ' + data.error);
+            console.error('Apps Script Error:', data.error);
+            showStatus('Error: ' + data.error, 'error');
             return;
         }
+
+        showStatus('Data loaded successfully', 'success');
 
         // === KPIs & Lost Calls ===
         const periods = ['daily','weekly','monthly'];
@@ -354,6 +412,8 @@
             const total = (obj.answered || 0) + (obj.lost || 0);
             const abandon = total ? (obj.lost / total * 100) : 0;
             const ansRate = total ? (obj.answered / total * 100) : 0;
+            
+            console.log(`${p} metrics:`, { answered: obj.answered, lost: obj.lost, total, ansRate, abandon });
             
             // Update counts
             ansCnt.textContent = obj.answered || 0;
@@ -371,6 +431,7 @@
             setArrow(p, Number(abandon.toFixed(1)));
           } else {
             // Reset the card to initial state if no data is found for the period
+            console.log(`No data found for ${p} period`);
             ansCnt.textContent = '0';
             lostCnt.textContent = '0';
             ansEl.textContent = '--%';
@@ -384,11 +445,13 @@
 
         // Update the new Lost Calls card using the new 'lostOpportunities' data
         if (data.lostOpportunities) {
+          console.log('Lost opportunities:', data.lostOpportunities);
           document.getElementById('lost-calls-daily').textContent = data.lostOpportunities.daily || 0;
           document.getElementById('lost-calls-weekly').textContent = data.lostOpportunities.weekly || 0;
           document.getElementById('lost-calls-monthly').textContent = data.lostOpportunities.monthly || 0;
         } else {
           // Reset lost calls if no data
+          console.log('No lost opportunities data found');
           document.getElementById('lost-calls-daily').textContent = '--';
           document.getElementById('lost-calls-weekly').textContent = '--';
           document.getElementById('lost-calls-monthly').textContent = '--';
@@ -396,6 +459,8 @@
 
         // === SALES (Month on Month, €) ===
         const salesPairs = Object.entries(data.sales||{}).sort(([a],[b])=> a.localeCompare(b)); // yyyy-MM
+        console.log('Sales data:', salesPairs);
+        
         const salesRows = [['Month','Sales (€)']];
         const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         
@@ -414,43 +479,55 @@
           }
         });
         
-        const salesDT = google.visualization.arrayToDataTable(salesRows);
-        const currencyFormatter = new google.visualization.NumberFormat({prefix:'€', groupingSymbol:',', fractionDigits:0});
-        currencyFormatter.format(salesDT, 1);
+        if (salesRows.length > 1) {
+          const salesDT = google.visualization.arrayToDataTable(salesRows);
+          const currencyFormatter = new google.visualization.NumberFormat({prefix:'€', groupingSymbol:',', fractionDigits:0});
+          currencyFormatter.format(salesDT, 1);
 
-        const salesChart = new google.visualization.PieChart(document.getElementById('sales_chart'));
-        salesChart.draw(salesDT, {
-          title:'Sales by Month',
-          titleTextStyle: {
-            color: '#e6e9f2' // This is the var(--ink) color
-          },
-          legend:{position:'bottom', textStyle:{color:'#cbd5e1'}},
-          backgroundColor:'transparent',
-          is3D: true,
-          chartArea:{ left:16, right:16, top:40, bottom:50 }
-        });
+          const salesChart = new google.visualization.PieChart(document.getElementById('sales_chart'));
+          salesChart.draw(salesDT, {
+            title:'Sales by Month',
+            titleTextStyle: {
+              color: '#e6e9f2' // This is the var(--ink) color
+            },
+            legend:{position:'bottom', textStyle:{color:'#cbd5e1'}},
+            backgroundColor:'transparent',
+            is3D: true,
+            chartArea:{ left:16, right:16, top:40, bottom:50 }
+          });
+        } else {
+          // Clear the chart if no sales data
+          document.getElementById('sales_chart').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:420px;color:#9aa3b2;">No sales data available for the selected filters</div>';
+        }
 
         // === HEATMAP (convert ISO3 -> country name for GeoChart) ===
         const iso3Counts = data.countries || {};
-        const countriesJson = await fetch('https://cdn.jsdelivr.net/npm/world-countries@4/countries.json').then(r=>r.json());
-        const iso3toName = new Map(countriesJson.map(c => [String(c.cca3).toUpperCase(), c.name.common]));
-        const geoRows = [['Country','Calls']];
-        for (const [iso3, count] of Object.entries(iso3Counts)){
-          const name = iso3toName.get(String(iso3).toUpperCase()) || iso3; // fallback to code
-          geoRows.push([name, Number(count)||0]);
+        console.log('Country data:', iso3Counts);
+        
+        if (Object.keys(iso3Counts).length > 0) {
+          const countriesJson = await fetch('https://cdn.jsdelivr.net/npm/world-countries@4/countries.json').then(r=>r.json());
+          const iso3toName = new Map(countriesJson.map(c => [String(c.cca3).toUpperCase(), c.name.common]));
+          const geoRows = [['Country','Calls']];
+          for (const [iso3, count] of Object.entries(iso3Counts)){
+            const name = iso3toName.get(String(iso3).toUpperCase()) || iso3; // fallback to code
+            geoRows.push([name, Number(count)||0]);
+          }
+          const geoDT = google.visualization.arrayToDataTable(geoRows);
+          const geoChart = new google.visualization.GeoChart(document.getElementById('heatmap_chart'));
+          geoChart.draw(geoDT, {
+            backgroundColor:'transparent',
+            colorAxis:{ colors:['#63d2ff', '#ffdd55'] },
+            datalessRegionColor:'#f0f0f0',
+            legend:{ textStyle:{color:'#e6e9f2'} }
+          });
+        } else {
+          // Clear the chart if no country data
+          document.getElementById('heatmap_chart').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:420px;color:#9aa3b2;">No country data available for the selected filters</div>';
         }
-        const geoDT = google.visualization.arrayToDataTable(geoRows);
-        const geoChart = new google.visualization.GeoChart(document.getElementById('heatmap_chart'));
-        geoChart.draw(geoDT, {
-          backgroundColor:'transparent',
-          colorAxis:{ colors:['#63d2ff', '#ffdd55'] },
-          datalessRegionColor:'#f0f0f0',
-          legend:{ textStyle:{color:'#e6e9f2'} }
-        });
 
       }catch(err){
-        console.error(err);
-        alert('Failed to load dashboard data. Open console for details.');
+        console.error('Dashboard Error:', err);
+        showStatus('Failed to load data: ' + err.message, 'error');
       }
     }
   </script>
