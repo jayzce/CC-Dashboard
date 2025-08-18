@@ -93,8 +93,10 @@
             -webkit-appearance: none;
             -moz-appearance: none;
             appearance: none;
-            background: rgba(255,255,255,.06);
-            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="%23e6e9f2"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>');
+            background: var(--card); /* Darker background */
+            border: 1px solid rgba(255,255,255,.2); /* Lighter border for contrast */
+            color: white; /* White text for contrast */
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="%23ffffff"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>');
             background-repeat: no-repeat;
             background-position: right 1.25rem center;
             padding-right: 3rem;
@@ -107,7 +109,7 @@
 <body>
     <div class="wrap">
         <h1>Operations Dashboard</h1>
-        <div class="sub">Answer & Abandon Rates • Team Sales (EUR) • Global Call Heatmap</div>
+        <div class="sub"></div>
 
         <!-- Team Slicer Buttons -->
         <div class="team-buttons">
@@ -174,7 +176,7 @@
             </div>
             <!-- Monthly Rates -->
             <div class="card">
-                <h3>Monthly</h3>
+                <h3>MTD</h3>
                 <div class="metric">
                     <span class="label">Answer Rate</span>
                     <span id="monthly-answer" class="num">--%</span>
@@ -222,12 +224,13 @@
 
     <script>
         // ===== CONFIG =====
-        const APP_URL = "https://script.google.com/macros/s/AKfycbzGPGugEegePTz7uMDo5Gwpde8YruYYmCiaYznHCCFZcd4pmsoW5NQtIAAiP0ogIu8OWQ/exec";
+        // This is a placeholder. You MUST replace this URL with the one you get after deploying your Google Apps Script.
+        const APP_URL = "YOUR_GOOGLE_APPS_SCRIPT_URL_HERE";
         
         // Store the currently active team and slicer selections
         let activeTeam = null;
-        let selectedYear = 'all';
-        let selectedMonth = 'all';
+        let selectedYear = new Date().getFullYear();
+        let selectedMonth = new Date().getMonth() + 1;
 
         // ===== GOOGLE CHARTS LOAD =====
         google.charts.load('current', { packages: ['corechart','geochart'] });
@@ -284,7 +287,10 @@
         // Populate year slicer and set up event listeners on load
         document.addEventListener('DOMContentLoaded', () => {
             const yearSlicer = document.getElementById('year-slicer');
+            const monthSlicer = document.getElementById('month-slicer');
             const currentYear = new Date().getFullYear();
+            const currentMonth = new Date().getMonth() + 1;
+
             yearSlicer.innerHTML = `<option value="all">All Years</option>`;
             for (let y = currentYear; y >= currentYear - 5; y--) { // Go back 5 years
                 const option = document.createElement('option');
@@ -292,8 +298,10 @@
                 option.textContent = y;
                 yearSlicer.appendChild(option);
             }
-            yearSlicer.value = 'all'; // Default to all years
+            yearSlicer.value = 'all'; 
 
+            monthSlicer.value = currentMonth;
+            
             const buttons = document.querySelectorAll('.team-buttons button');
             buttons.forEach(button => {
                 button.addEventListener('click', () => {
@@ -309,7 +317,7 @@
                 selectedYear = e.target.value;
                 init();
             });
-            document.getElementById('month-slicer').addEventListener('change', (e) => {
+            monthSlicer.addEventListener('change', (e) => {
                 selectedMonth = e.target.value;
                 init();
             });
@@ -331,7 +339,7 @@
                 
                 // Handle errors
                 if (filteredData.error) {
-                    console.error(filteredData.error);
+                    console.error('API Error:', filteredData.error);
                     alert('Failed to load dashboard data: ' + filteredData.error);
                     return;
                 }
@@ -436,8 +444,9 @@
                 });
 
             }catch(err){
-                console.error(err);
-                alert('Failed to load dashboard data. Open console for details.');
+                // Log the full error to the console for easier debugging
+                console.error('An error occurred during API fetch or data processing:', err);
+                alert('Failed to load dashboard data. Please check the console for details.');
             }
         }
     </script>
