@@ -30,8 +30,9 @@
     }
     .sub{color:var(--muted); text-align:center; margin-bottom:18px}
     .grid{display:grid; gap:16px}
-    .cards{grid-template-columns: repeat(3, 1fr); margin-bottom:16px}
-    @media (max-width:900px){ .cards{grid-template-columns: 1fr} }
+    .cards{grid-template-columns: repeat(4, 1fr); margin-bottom:16px}
+    @media (max-width:1200px){ .cards{grid-template-columns: repeat(2, 1fr)} }
+    @media (max-width:600px){ .cards{grid-template-columns: 1fr)} }
     .card{
       background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
       border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:16px;
@@ -40,6 +41,7 @@
     }
     .card:nth-child(2){animation-delay:.08s}
     .card:nth-child(3){animation-delay:.16s}
+    .card:nth-child(4){animation-delay:.24s}
     @keyframes pop{to{transform:none; opacity:1}}
 
     .card h3{margin:0 0 10px; font-size:16px; color:var(--muted); text-transform:uppercase; letter-spacing:.14em}
@@ -52,14 +54,40 @@
     }
     .good{color:var(--good)} .warn{color:var(--warn)} .bad{color:var(--bad)}
     .arrow{font-size:18px; vertical-align:middle; display:inline-block; margin-left:4px}
-
     .panel{background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
       border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:16px; box-shadow:0 10px 30px rgba(0,0,0,.35)}
     .grid2{grid-template-columns: 1fr 1fr}
     @media (max-width:900px){ .grid2{grid-template-columns: 1fr} }
-
     #sales_chart, #heatmap_chart{height:420px}
     .footer{margin-top:12px; color:var(--muted); text-align:center; font-size:12px}
+
+    /* Team button styles */
+    .team-buttons{
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .team-buttons button{
+      padding: 10px 24px;
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 999px;
+      background: rgba(255,255,255,.08);
+      color: var(--ink);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color .2s, transform .2s;
+    }
+    .team-buttons button:hover{
+      background: rgba(255,255,255,.12);
+      transform: scale(1.02);
+    }
+    .team-buttons button.active{
+      background: var(--brand);
+      border-color: var(--brand);
+      color: white;
+    }
   </style>
 </head>
 <body>
@@ -67,9 +95,16 @@
     <h1>Operations Dashboard</h1>
     <div class="sub">Answer & Abandon Rates • Team Sales (EUR) • Global Call Heatmap</div>
 
+    <!-- Team Slicer Buttons -->
+    <div class="team-buttons">
+      <button id="all-teams-btn" class="active">All Teams</button>
+      <button id="ph-team-btn" data-team="philippines">Team Philippines</button>
+      <button id="sv-team-btn" data-team="el-salvador">Team El Salvador</button>
+    </div>
+
     <!-- KPI CARDS -->
     <div class="grid cards">
-      <!-- Daily -->
+      <!-- Daily Rates -->
       <div class="card">
         <h3>Daily</h3>
         <div class="metric">
@@ -83,10 +118,10 @@
         </div>
         <div class="row">
           <div class="pill">Answered: <strong id="daily-ans-cnt">0</strong></div>
-          <div class="pill">Lost: <strong id="daily-lost-cnt">0</strong></div>
+          <div class="pill">Missed: <strong id="daily-lost-cnt">0</strong></div>
         </div>
       </div>
-      <!-- Weekly -->
+      <!-- Weekly Rates -->
       <div class="card">
         <h3>Weekly</h3>
         <div class="metric">
@@ -100,10 +135,10 @@
         </div>
         <div class="row">
           <div class="pill">Answered: <strong id="weekly-ans-cnt">0</strong></div>
-          <div class="pill">Lost: <strong id="weekly-lost-cnt">0</strong></div>
+          <div class="pill">Missed: <strong id="weekly-lost-cnt">0</strong></div>
         </div>
       </div>
-      <!-- Monthly -->
+      <!-- Monthly Rates -->
       <div class="card">
         <h3>Monthly</h3>
         <div class="metric">
@@ -117,7 +152,23 @@
         </div>
         <div class="row">
           <div class="pill">Answered: <strong id="monthly-ans-cnt">0</strong></div>
-          <div class="pill">Lost: <strong id="monthly-lost-cnt">0</strong></div>
+          <div class="pill">Missed: <strong id="monthly-lost-cnt">0</strong></div>
+        </div>
+      </div>
+      <!-- Lost Calls -->
+      <div class="card">
+        <h3>Lost Calls (Opportunities)</h3>
+        <div class="metric">
+          <span class="label">Daily</span>
+          <span id="lost-calls-daily" class="num">--</span>
+        </div>
+        <div class="metric">
+          <span class="label">Weekly</span>
+          <span id="lost-calls-weekly" class="num">--</span>
+        </div>
+        <div class="metric">
+          <span class="label">Monthly</span>
+          <span id="lost-calls-monthly" class="num">--</span>
         </div>
       </div>
     </div>
@@ -137,11 +188,15 @@
 
   <script>
     // ===== CONFIG =====
+    // This is a placeholder URL. Update this with your published Google Apps Script URL.
     const APP_URL = "https://script.google.com/macros/s/AKfycbzGPGugEegePTz7uMDo5Gwpde8YruYYmCiaYznHCCFZcd4pmsoW5NQtIAAiP0ogIu8OWQ/exec";
+    
+    // Store the currently active team
+    let activeTeam = null;
 
     // ===== GOOGLE CHARTS LOAD =====
     google.charts.load('current', { packages: ['corechart','geochart'] });
-    google.charts.setOnLoadCallback(init);
+    google.charts.setOnLoadCallback(() => init());
 
     // ===== UTILS =====
     const clamp = (n,min,max)=>Math.max(min,Math.min(max,n));
@@ -160,7 +215,7 @@
       if (r <= 10) return 'warn';
       return 'bad';
     }
-    function animateNumber(el, target, suffix='%'){
+    function animateNumber(el, target, suffix=''){
       const start = 0; const dur = 900; let st=null;
       const step = (ts)=>{
         if(!st) st=ts;
@@ -193,49 +248,74 @@
       ], { duration: 700, iterations: 2 });
     }
 
+    // New event listeners for team buttons
+    document.addEventListener('DOMContentLoaded', () => {
+      const buttons = document.querySelectorAll('.team-buttons button');
+      buttons.forEach(button => {
+        button.addEventListener('click', () => {
+          // Remove 'active' class from all buttons
+          buttons.forEach(b => b.classList.remove('active'));
+          // Add 'active' class to the clicked button
+          button.classList.add('active');
+          // Update the activeTeam variable and re-initialize the dashboard
+          const team = button.getAttribute('data-team');
+          activeTeam = team;
+          init();
+        });
+      });
+    });
+
     async function init(){
       try{
-        const res = await fetch(APP_URL);
+        let url = APP_URL;
+        // Add the team parameter to the URL if a team is selected
+        if (activeTeam) {
+          url += `?team=${activeTeam}`;
+        }
+        
+        const res = await fetch(url);
         const data = await res.json();
-        // Expected from Apps Script:
-        // {
-        //   answerRates: {
-        //     daily:{answered, lost, rate},
-        //     weekly:{answered, lost, rate},
-        //     monthly:{answered, lost, rate}
-        //   },
-        //   sales: {"YYYY-MM": number, ...},
-        //   countries: {"PHL": 10, "USA": 3, ...}
-        // }
+        
+        // Check for error from Apps Script
+        if (data.error) {
+            console.error(data.error);
+            alert('Failed to load dashboard data: ' + data.error);
+            return;
+        }
 
-        // === KPIs ===
+        // === KPIs & Lost Calls ===
         const periods = ['daily','weekly','monthly'];
         periods.forEach(p=>{
           const obj = data.answerRates[p];
           const total = (obj.answered||0) + (obj.lost||0);
           const abandon = total ? (obj.lost/total*100) : 0;
-          const ansRate = Number(obj.rate||0);
+          const ansRate = total ? (obj.answered/total*100) : 0;
 
           const ansEl = document.getElementById(`${p}-answer`);
           const abdEl = document.getElementById(`${p}-abandon`);
           const ansCnt = document.getElementById(`${p}-ans-cnt`);
           const lostCnt = document.getElementById(`${p}-lost-cnt`);
 
+          // Update counts
           ansCnt.textContent = obj.answered||0;
           lostCnt.textContent = obj.lost||0;
-
+          
+          // Animate and update rates
           ansEl.classList.remove('good','warn','bad');
           abdEl.classList.remove('good','warn','bad');
           ansEl.classList.add(colorClassForAnswerRate(ansRate));
           abdEl.classList.add(colorClassForAbandonRate(abandon));
-
-          // animate numbers
-          animateNumber(ansEl, ansRate);
-          animateNumber(abdEl, abandon);
+          animateNumber(ansEl, ansRate, '%');
+          animateNumber(abdEl, abandon, '%');
 
           // trend arrow (vs previous load)
           setArrow(p, Number(abandon.toFixed(1)));
         });
+
+        // Update the new Lost Calls card using the new 'lostOpportunities' data
+        document.getElementById('lost-calls-daily').textContent = data.lostOpportunities.daily || 0;
+        document.getElementById('lost-calls-weekly').textContent = data.lostOpportunities.weekly || 0;
+        document.getElementById('lost-calls-monthly').textContent = data.lostOpportunities.monthly || 0;
 
         // === SALES (Month on Month, €) ===
         const salesPairs = Object.entries(data.sales||{}).sort(([a],[b])=> a.localeCompare(b)); // yyyy-MM
@@ -268,10 +348,10 @@
         const geoDT = google.visualization.arrayToDataTable(geoRows);
         const geoChart = new google.visualization.GeoChart(document.getElementById('heatmap_chart'));
         geoChart.draw(geoDT, {
-          backgroundColor:'transparent',
-          colorAxis:{ colors:['#a78bfa','#22c55e'] }, // gradient brand -> green
-          datalessRegionColor:'#1f254d',
-          legend:{ textStyle:{color:'#cbd5e1'} }
+          backgroundColor:'white',
+          colorAxis:{ colors:['#63d2ff', '#ffdd55'] },
+          datalessRegionColor:'#f0f0f0',
+          legend:{ textStyle:{color:'#333'} }
         });
 
       }catch(err){
@@ -282,5 +362,3 @@
   </script>
 </body>
 </html>
-
-
