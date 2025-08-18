@@ -309,6 +309,9 @@
         selectedMonth = e.target.value;
         init();
       });
+      
+      // Start the auto-refresh every 30 seconds
+      setInterval(init, 30000);
     });
 
     async function init(){
