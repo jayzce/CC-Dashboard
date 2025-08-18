@@ -339,36 +339,56 @@
         // === KPIs & Lost Calls ===
         const periods = ['daily','weekly','monthly'];
         periods.forEach(p=>{
-          const obj = data.answerRates[p];
-          const total = (obj.answered||0) + (obj.lost||0);
-          const abandon = total ? (obj.lost/total*100) : 0;
-          const ansRate = total ? (obj.answered/total*100) : 0;
-
           const ansEl = document.getElementById(`${p}-answer`);
           const abdEl = document.getElementById(`${p}-abandon`);
           const ansCnt = document.getElementById(`${p}-ans-cnt`);
           const lostCnt = document.getElementById(`${p}-lost-cnt`);
 
-          // Update counts
-          ansCnt.textContent = obj.answered||0;
-          lostCnt.textContent = obj.lost||0;
-          
-          // Animate and update rates
-          ansEl.classList.remove('good','warn','bad');
-          abdEl.classList.remove('good','warn','bad');
-          ansEl.classList.add(colorClassForAnswerRate(ansRate));
-          abdEl.classList.add(colorClassForAbandonRate(abandon));
-          animateNumber(ansEl, ansRate, '%');
-          animateNumber(abdEl, abandon, '%');
+          // Add a defensive check for the data object
+          if (data.answerRates && data.answerRates[p]) {
+            const obj = data.answerRates[p];
+            const total = (obj.answered || 0) + (obj.lost || 0);
+            const abandon = total ? (obj.lost / total * 100) : 0;
+            const ansRate = total ? (obj.answered / total * 100) : 0;
+            
+            // Update counts
+            ansCnt.textContent = obj.answered || 0;
+            lostCnt.textContent = obj.lost || 0;
+            
+            // Animate and update rates
+            ansEl.classList.remove('good','warn','bad');
+            abdEl.classList.remove('good','warn','bad');
+            ansEl.classList.add(colorClassForAnswerRate(ansRate));
+            abdEl.classList.add(colorClassForAbandonRate(abandon));
+            animateNumber(ansEl, ansRate, '%');
+            animateNumber(abdEl, abandon, '%');
 
-          // trend arrow (vs previous load)
-          setArrow(p, Number(abandon.toFixed(1)));
+            // trend arrow (vs previous load)
+            setArrow(p, Number(abandon.toFixed(1)));
+          } else {
+            // Reset the card to initial state if no data is found for the period
+            ansCnt.textContent = '0';
+            lostCnt.textContent = '0';
+            ansEl.textContent = '--%';
+            abdEl.textContent = '--%';
+            ansEl.classList.remove('good','warn','bad');
+            abdEl.classList.remove('good','warn','bad');
+            document.getElementById(`${p}-arrow`).textContent = '';
+            localStorage.removeItem(`abandon_prev_${p}`);
+          }
         });
 
         // Update the new Lost Calls card using the new 'lostOpportunities' data
-        document.getElementById('lost-calls-daily').textContent = data.lostOpportunities.daily || 0;
-        document.getElementById('lost-calls-weekly').textContent = data.lostOpportunities.weekly || 0;
-        document.getElementById('lost-calls-monthly').textContent = data.lostOpportunities.monthly || 0;
+        if (data.lostOpportunities) {
+          document.getElementById('lost-calls-daily').textContent = data.lostOpportunities.daily || 0;
+          document.getElementById('lost-calls-weekly').textContent = data.lostOpportunities.weekly || 0;
+          document.getElementById('lost-calls-monthly').textContent = data.lostOpportunities.monthly || 0;
+        } else {
+          // Reset lost calls if no data
+          document.getElementById('lost-calls-daily').textContent = '--';
+          document.getElementById('lost-calls-weekly').textContent = '--';
+          document.getElementById('lost-calls-monthly').textContent = '--';
+        }
 
         // === SALES (Month on Month, €) ===
         const salesPairs = Object.entries(data.sales||{}).sort(([a],[b])=> a.localeCompare(b)); // yyyy-MM
@@ -418,12 +438,10 @@
         const geoDT = google.visualization.arrayToDataTable(geoRows);
         const geoChart = new google.visualization.GeoChart(document.getElementById('heatmap_chart'));
         geoChart.draw(geoDT, {
-          // === CHANGES START HERE ===
           backgroundColor:'transparent',
           colorAxis:{ colors:['#63d2ff', '#ffdd55'] },
           datalessRegionColor:'#f0f0f0',
           legend:{ textStyle:{color:'#e6e9f2'} }
-          // === CHANGES END HERE ===
         });
 
       }catch(err){
