@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Contact Center Dashboard</title>
+
+  <!-- Chart libs -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-geo@4"></script>
+
+  <!-- Fonts & Base Styles -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --bg1:#1a0f1f; --bg2:#261c3a; --card:#2a1f3f; --accent:#a855f7; --accent2:#06b6d4; --txt:#f3f4f6; --muted:#cbd5e1;
+      --glass: rgba(255,255,255,0.06);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif; color:var(--txt);
+      background: radial-gradient(1200px 800px at 20% -10%, #3b1f5b 0%, transparent 60%),
+                  radial-gradient(900px 700px at 100% 0%, #192a50 0%, transparent 60%),
+                  linear-gradient(180deg, var(--bg1), var(--bg2) 60%);
+      min-height:100vh; padding:24px;
+    }
+    .wrap{max-width:1200px; margin:0 auto;}
+    .header{
+      display:flex; gap:16px; align-items:center; justify-content:space-between; margin-bottom:18px;
+    }
+    .brand{font-weight:800; font-size:24px; letter-spacing:.5px}
+    .sub{color:var(--muted); font-size:13px}
+    .grid{display:grid; gap:16px}
+    /* layout */
+    .grid.kpis{grid-template-columns: repeat(6, 1fr);}
+    .grid.mid{grid-template-columns: 1.5fr 2fr;}
+    .grid.bottom{grid-template-columns: 1fr 1fr;}
+    @media (max-width:1100px){ .grid.kpis{grid-template-columns: repeat(3, 1fr);} .grid.mid{grid-template-columns:1fr;} .grid.bottom{grid-template-columns:1fr;} }
+
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
+      border:1px solid rgba(255,255,255,0.08);
+      border-radius:16px; padding:16px; box-shadow:0 10px 30px rgba(0,0,0,.35);
+      backdrop-filter: blur(6px);
+    }
+    .kpi{display:flex; flex-direction:column; gap:8px; min-height:110px; position:relative; overflow:hidden}
+    .kpi .title{font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.12em}
+    .kpi .value{font-size:28px; font-weight:800}
+    .pillrow{display:flex; gap:8px; flex-wrap:wrap}
+    .pill{
+      font-size:12px; padding:6px 10px; border-radius:999px; border:1px solid rgba(255,255,255,.14);
+      background:var(--glass)
+    }
+    .pill strong{font-weight:700}
+    .chart-title{font-weight:700; margin-bottom:8px; letter-spacing:.02em}
+    canvas{width:100%; height:360px;}
+    #map{height:420px}
+    .legend{font-size:12px; color:var(--muted)}
+    .footer-note{margin-top:12px; font-size:12px; color:var(--muted)}
+    .badge{
+      position:absolute; right:12px; top:12px; font-size:10px; padding:4px 8px; border-radius:999px;
+      background:linear-gradient(90deg, var(--accent), var(--accent2)); color:#0b1020; font-weight:700
+    }
+    a{color:#a5b4fc; text-decoration:none}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <div>
+        <div class="brand">Operations Dashboard</div>
+        <div class="sub">Answer & Abandon Rates • Team Sales • Global Call Heatmap</div>
+      </div>
+      <div class="sub">Live from Google Sheets</div>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="grid kpis">
+      <div class="card kpi" id="kpi-answer">
+        <div class="title">Answer Rate</div>
+        <div class="value" id="answer-main">--%</div>
+        <div class="pillrow">
+          <div class="pill">Daily: <strong id="answer-d">--%</strong></div>
+          <div class="pill">Weekly: <strong id="answer-w">--%</strong></div>
+          <div class="pill">Monthly: <strong id="answer-m">--%</strong></div>
+        </div>
+        <div class="badge">Calls</div>
+      </div>
+
+      <div class="card kpi" id="kpi-abandon">
+        <div class="title">Abandon Rate</div>
+        <div class="value" id="abandon-main">--%</div>
+        <div class="pillrow">
+          <div class="pill">Daily: <strong id="abandon-d">--%</strong></div>
+          <div class="pill">Weekly: <strong id="abandon-w">--%</strong></div>
+          <div class="pill">Monthly: <strong id="abandon-m">--%</strong></div>
+        </div>
+        <div class="badge">Quality</div>
+      </div>
+
+      <div class="card kpi" id="kpi-sales" style="grid-column: span 2">
+        <div class="title">Total Team Sales</div>
+        <div class="value" id="sales-main">$0</div>
+        <div class="pillrow">
+          <div class="pill">Records: <strong id="sales-count">0</strong></div>
+          <div class="pill">Avg: <strong id="sales-avg">$0</strong></div>
+        </div>
+        <div class="badge">Revenue</div>
+      </div>
+
+      <div class="card kpi" style="grid-column: span 2">
+        <div class="title">Answered vs Abandoned (Last 30 days)</div>
+        <canvas id="pie-answered"></canvas>
+      </div>
+    </div>
+
+    <!-- Map + Trend -->
+    <div class="grid mid" style="margin-top:10px">
+      <div class="card">
+        <div class="chart-title">Sales Trend (Last 90 days)</div>
+        <canvas id="line-sales"></canvas>
+      </div>
+
+      <div class="card">
+        <div class="chart-title">Calls Heatmap by Country</div>
+        <canvas id="map"></canvas>
+        <div class="legend">Bubble size = call volume (all statuses). Uses country centroids from world-countries dataset.</div>
+      </div>
+    </div>
+
+    <div class="footer-note">Tip: publish this repo with GitHub Pages (Settings → Pages → Deploy from main / root).</div>
+  </div>
+
+  <script>
+    // ======== CONFIG ========
+    const APP_URL = "https://script.google.com/macros/s/AKfycbzGPGugEegePTz7uMDo5Gwpde8YruYYmCiaYznHCCFZcd4pmsoW5NQtIAAiP0ogIu8OWQ/exec"; // your Apps Script URL
+
+    // ======== HELPERS ========
+    const fmtPct = n => isFinite(n) ? (n*100).toFixed(1) + "%" : "--%";
+    const fmtMoney = n => {
+      const num = Number(n)||0;
+      return num.toLocaleString(undefined, {style:"currency", currency:"USD", maximumFractionDigits:0});
+    };
+    const startOfDay = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const sameDay = (a,b)=> startOfDay(a).getTime() === startOfDay(b).getTime();
+    function weekRange(d){ // ISO week Mon-Sun
+      const n = new Date(d); const day = (n.getDay()+6)%7; // Mon=0
+      const mon = new Date(n); mon.setDate(n.getDate()-day);
+      const sun = new Date(mon); sun.setDate(mon.getDate()+6); sun.setHours(23,59,59,999);
+      return [startOfDay(mon), sun];
+    }
+    function monthRange(d){
+      const first = new Date(d.getFullYear(), d.getMonth(), 1);
+      const last = new Date(d.getFullYear(), d.getMonth()+1, 0); last.setHours(23,59,59,999);
+      return [first, last];
+    }
+    function toDateFlexible(v){
+      if (v instanceof Date) return v;
+      if (typeof v === "number") { // serial days?
+        const excelEpoch = new Date(Date.UTC(1899,11,30)); // Google/Excel baseline
+        return new Date(excelEpoch.getTime() + v*86400000);
+      }
+      const d = new Date(v);
+      if (!isNaN(d)) return d;
+      // try M/D/Y
+      const mdy = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/;
+      const m = (v+"").match(mdy); if(m){ return new Date(+m[3], m[1]-1, +m[2]); }
+      return new Date(NaN);
+    }
+
+    // Group metrics for a date window
+    function computeRates(rows, from, to){
+      const inRange = rows.filter(r=>{
+        const d = toDateFlexible(r.Date);
+        return d>=from && d<=to;
+      });
+      const total = inRange.length;
+      const served = inRange.filter(r => String(r.Status).toLowerCase()==="served").length;
+      const lost   = inRange.filter(r => String(r.Status).toLowerCase()==="lost").length;
+      const missed = inRange.filter(r => String(r.Status).toLowerCase()==="missed").length;
+      const denom = served+lost+missed || 1;
+      return {
+        answerRate: served/denom,
+        abandonRate: lost/denom,
+        counts: {served, lost, missed, total}
+      };
+    }
+
+    // ======== MAIN ========
+    (async function init(){
+      // fetch combined JSON from Apps Script
+      const res = await fetch(APP_URL);
+      const payload = await res.json(); // { calls:[], sales:[] }
+      // Expect:
+      // calls: [{Date: <col D>, Status: <col G: Served|Missed|Lost>, Country: <col J (ISO3)>}, ...]
+      // sales: [{Sales: <col K number>}, ...]
+
+      const calls = (payload.calls||[]).filter(r => r && r.Date && r.Status);
+      const sales = (payload.sales||[]).filter(r => r && r.Sales!==undefined);
+
+      // Find most recent date in calls to anchor daily/weekly/monthly
+      const latest = calls
+        .map(r => toDateFlexible(r.Date))
+        .filter(d => !isNaN(d)).sort((a,b)=>b-a)[0] || new Date();
+
+      // DAILY
+      const [wd0, wd1] = [startOfDay(latest), new Date(startOfDay(latest).getTime()+86399999)];
+      const daily = computeRates(calls, wd0, wd1);
+
+      // WEEKLY (ISO week for latest date)
+      const [w0, w1] = weekRange(latest);
+      const weekly = computeRates(calls, w0, w1);
+
+      // MONTHLY (month of latest date)
+      const [m0, m1] = monthRange(latest);
+      const monthly = computeRates(calls, m0, m1);
+
+      // ===== KPIs =====
+      document.getElementById("answer-d").textContent = fmtPct(daily.answerRate);
+      document.getElementById("answer-w").textContent = fmtPct(weekly.answerRate);
+      document.getElementById("answer-m").textContent = fmtPct(monthly.answerRate);
+      document.getElementById("answer-main").textContent = fmtPct(monthly.answerRate);
+
+      document.getElementById("abandon-d").textContent = fmtPct(daily.abandonRate);
+      document.getElementById("abandon-w").textContent = fmtPct(weekly.abandonRate);
+      document.getElementById("abandon-m").textContent = fmtPct(monthly.abandonRate);
+      document.getElementById("abandon-main").textContent = fmtPct(monthly.abandonRate);
+
+      const salesNums = sales.map(s => Number(String(s.Sales).toString().replace(/[^0-9.\-]/g,""))).filter(n => !isNaN(n));
+      const totalSales = salesNums.reduce((a,b)=>a+b,0);
+      const avgSales = salesNums.length ? totalSales/salesNums.length : 0;
+      document.getElementById("sales-main").textContent = fmtMoney(totalSales);
+      document.getElementById("sales-count").textContent = String(salesNums.length);
+      document.getElementById("sales-avg").textContent = fmtMoney(avgSales);
+
+      // ===== Pie: last 30 days answered vs abandoned =====
+      const thirtyAgo = new Date(latest); thirtyAgo.setDate(latest.getDate()-30);
+      const last30 = computeRates(calls, thirtyAgo, latest).counts;
+      const pieCtx = document.getElementById("pie-answered");
+      new Chart(pieCtx, {
+        type: "doughnut",
+        data: {
+          labels: ["Served","Lost","Missed"],
+          datasets: [{ data: [last30.served, last30.lost, last30.missed] }]
+        },
+        options: {
+          plugins:{ legend:{ position:"bottom" } }
+        }
+      });
+
+      // ===== Line: Sales by day (last 90 days, using Sale sheet dates if available later) =====
+      // If your Sale sheet has dates later, we can switch to actual sales dates. For now we show cumulative over time.
+      const last90Map = new Map(); // key yyyy-mm-dd -> sum
+      const today = latest;
+      const d90 = new Date(today); d90.setDate(today.getDate()-89);
+      for (let d=new Date(d90); d<=today; d.setDate(d.getDate()+1)) {
+        const key = d.toISOString().slice(0,10); last90Map.set(key, 0);
+      }
+      // Assume sales array has no dates; render running average across the window
+      const keys = [...last90Map.keys()];
+      const step = salesNums.length ? totalSales/keys.length : 0;
+      let acc = 0;
+      const series = keys.map(_=> (acc+=step));
+      new Chart(document.getElementById("line-sales"), {
+        type:"line",
+        data:{ labels: keys, datasets:[{ label:"Total Sales (distributed)", data: series, tension:.35, fill:true }] },
+        options:{ scales:{ x:{ ticks:{ maxTicksLimit:10 } }, y:{ beginAtZero:true } }, plugins:{legend:{display:false}} }
+      });
+
+      // ===== Heatmap (bubble map) by country =====
+      // Count calls per ISO3
+      const countryCounts = calls.reduce((acc, r)=>{
+        const code = String(r.Country||"").trim().toUpperCase();
+        if (!code) return acc;
+        acc[code] = (acc[code]||0) + 1;
+        return acc;
+      }, {});
+
+      // Load country centroids (world-countries dataset)
+      const countriesJson = await fetch("https://cdn.jsdelivr.net/npm/world-countries@4/countries.json").then(r=>r.json());
+      const byISO3 = new Map(countriesJson.map(c => [String(c.cca3).toUpperCase(), c]));
+
+      // Build point data
+      const points = Object.entries(countryCounts).map(([iso3, count])=>{
+        const meta = byISO3.get(iso3);
+        if (!meta || !meta.latlng) return null;
+        return { latitude: meta.latlng[0], longitude: meta.latlng[1], value: count, name: meta.name.common, iso3 };
+      }).filter(Boolean);
+
+      const mapCtx = document.getElementById("map").getContext("2d");
+      new Chart(mapCtx, {
+        type: "bubbleMap",
+        data: {
+          labels: points.map(p => `${p.name} (${p.iso3})`),
+          datasets: [{
+            label: "Calls",
+            data: points
+          }]
+        },
+        options: {
+          plugins: { legend: { display:false }, tooltip:{ callbacks:{
+            label: ctx => `${ctx.raw.name}: ${ctx.raw.value} calls`
+          }}},
+          scales: {
+            projection: { axis: "x", projection: "equalEarth" }
+          }
+        }
+      });
+    })().catch(err=>{
+      console.error(err);
+      alert("Failed to load dashboard data. Check Console for details.");
+    });
+  </script>
+</body>
+</html>
