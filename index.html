@@ -14,7 +14,7 @@
             --good:#16a34a; --warn:#f59e0b; --bad:#ef4444; --brand:#8b5cf6;
         }
         *{box-sizing:border-box}
-        html,body{height:100%}
+        html,body{height:100%d}
         body{
             margin:0; background:
             radial-gradient(1200px 600px at 10% -10%, rgba(139,92,246,.25), transparent 60%),
@@ -59,8 +59,24 @@
         .grid2{grid-template-columns: 1fr 1fr}
         @media (max-width:900px){ .grid2{grid-template-columns: 1fr} }
         #sales_chart, #heatmap_chart{height:420px}
-        .footer{margin-top:12px; color:var(--muted); text-align:center; font-size:12px}
-
+        .footer{
+            margin-top:12px;
+            text-align:center;
+            font-size:16px;
+            text-shadow: 0 0 8px rgba(139,92,246,0.8), 0 0 15px rgba(139,92,246,0.6);
+            animation: neon-pulse 1.5s ease-in-out infinite alternate;
+        }
+        @keyframes neon-pulse {
+            from {
+                color: #e6e9f2;
+                text-shadow: 0 0 4px #8b5cf6, 0 0 8px #8b5cf6, 0 0 12px #8b5cf6, 0 0 16px #8b5cf6;
+            }
+            to {
+                color: var(--brand);
+                text-shadow: 0 0 8px #8b5cf6, 0 0 12px #8b5cf6, 0 0 16px #8b5cf6, 0 0 20px #8b5cf6;
+            }
+        }
+        
         /* Slicer and button styles */
         .slicers, .team-buttons{
             display: flex;
@@ -101,8 +117,35 @@
             background-position: right 1.25rem center;
             padding-right: 3rem;
         }
-        #lost-calls-card .num {
-            font-weight: normal;
+        /* New styles to center the lost calls content */
+        #lost-calls-card {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        #lost-calls-card .metric {
+            /* Existing styles */
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            height: 100%;
+        }
+        #lost-calls-card .metric .num {
+            font-size: 54px;
+            font-weight: 800;
+            line-height: 1;
+        }
+        #lost-calls-card .metric .label {
+            display: none;
+        }
+        /* Style for heatmap chart text to make it non-bold */
+        .google-visualization-geochart-tooltip-text {
+            font-weight: normal !important;
+        }
+        .google-visualization-legend-text {
+            font-weight: normal !important;
         }
     </style>
 </head>
@@ -195,15 +238,6 @@
             <div class="card" id="lost-calls-card">
                 <h3>Lost Calls (Opportunities)</h3>
                 <div class="metric">
-                    <span class="label">Daily</span>
-                    <span id="lost-calls-daily" class="num">--</span>
-                </div>
-                <div class="metric">
-                    <span class="label">Weekly</span>
-                    <span id="lost-calls-weekly" class="num">--</span>
-                </div>
-                <div class="metric">
-                    <span class="label">Monthly</span>
                     <span id="lost-calls-monthly" class="num">--</span>
                 </div>
             </div>
@@ -387,10 +421,7 @@
                 });
 
                 // Update the new Lost Calls card using the new 'lostOpportunities' data
-                document.getElementById('lost-calls-daily').textContent = filteredData.lostOpportunities?.daily ?? '--';
-                document.getElementById('lost-calls-weekly').textContent = filteredData.lostOpportunities?.weekly ?? '--';
                 document.getElementById('lost-calls-monthly').textContent = filteredData.lostOpportunities?.monthly ?? '--';
-
 
                 // === SALES (Month on Month, €) ===
                 const salesPairs = Object.entries(filteredData.sales||{}).sort(([a],[b])=> a.localeCompare(b)); // yyyy-MM
@@ -440,7 +471,8 @@
                     backgroundColor:'transparent',
                     colorAxis:{ colors:['#63d2ff', '#ffdd55'] },
                     datalessRegionColor:'#f0f0f0',
-                    legend:{ textStyle:{color:'#e6e9f2'} }
+                    legend:{ textStyle:{color:'#e6e9f2', fontWeight: 'normal'} },
+                    textStyle: { fontWeight: 'normal', color: '#e6e9f2' }
                 });
 
             }catch(err){
@@ -452,6 +484,3 @@
     </script>
 </body>
 </html>
-
-
-
