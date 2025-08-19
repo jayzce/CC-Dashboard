@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Operations Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- Google Charts -->
+    <script src="https://www.gstatic.com/charts/loader.js"></script>
+
+    <style>
+        :root{
+            --bg:#0f1221; --card:#121733; --ink:#e6e9f2; --muted:#9aa3b2;
+            --good:#16a34a; --warn:#f59e0b; --bad:#ef4444; --brand:#8b5cf6;
+        }
+        *{box-sizing:border-box}
+        html,body{height:100%}
+        body{
+            margin:0; background:
+            radial-gradient(1200px 600px at 10% -10%, rgba(139,92,246,.25), transparent 60%),
+            radial-gradient(1000px 600px at 100% 0%, rgba(34,197,94,.2), transparent 55%),
+            linear-gradient(180deg, #0b0e1a, #131a36 70%);
+            color:var(--ink); font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+            display:flex; align-items:center; justify-content:center; padding:24px;
+        }
+        .wrap{width:100%; max-width:1200px}
+        h1{
+            text-align:center; margin:0 0 18px; font-size:28px; letter-spacing:.3px;
+            font-weight:800;
+        }
+        .sub{color:var(--muted); text-align:center; margin-bottom:18px}
+        .grid{display:grid; gap:16px}
+        .cards{grid-template-columns: repeat(4, 1fr); margin-bottom:16px}
+        @media (max-width:1200px){ .cards{grid-template-columns: repeat(2, 1fr)} }
+        @media (max-width:600px){ .cards{grid-template-columns: 1fr)} }
+        .card{
+            background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+            border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:16px;
+            box-shadow:0 10px 30px rgba(0,0,0,.35); backdrop-filter: blur(6px);
+            transform: translateY(10px); opacity:0; animation: pop .6s ease-out forwards;
+        }
+        .card:nth-child(2){animation-delay:.08s}
+        .card:nth-child(3){animation-delay:.16s}
+        .card:nth-child(4){animation-delay:.24s}
+        @keyframes pop{to{transform:none; opacity:1}}
+
+        .card h3{margin:0 0 10px; font-size:16px; color:var(--muted); text-transform:uppercase; letter-spacing:.14em}
+        .metric{display:flex; align-items:center; justify-content:center; gap:8px; font-weight:800}
+        .metric .num{font-size:28px}
+        .row{display:flex; justify-content:center; gap:16px; flex-wrap:wrap; margin-top:8px}
+        .pill{
+            font-size:12px; color:var(--muted); padding:6px 10px; border-radius:999px;
+            background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1)
+        }
+        .good{color:var(--good)} .warn{color:var(--warn)} .bad{color:var(--bad)}
+        .arrow{font-size:18px; vertical-align:middle; display:inline-block; margin-left:4px}
+        .panel{background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+            border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:16px; box-shadow:0 10px 30px rgba(0,0,0,.35)}
+        .grid2{grid-template-columns: 1fr 1fr}
+        @media (max-width:900px){ .grid2{grid-template-columns: 1fr} }
+        #sales_chart, #heatmap_chart{height:420px}
+        .footer{margin-top:12px; color:var(--muted); text-align:center; font-size:12px}
+
+        /* Slicer and button styles */
+        .slicers, .team-buttons{
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+        .team-buttons button, .slicers select{
+            padding: 10px 24px;
+            border: 1.5px solid rgba(255,255,255,.1);
+            border-radius: 999px;
+            background: rgba(255,255,255,.08);
+            color: var(--ink);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color .2s, transform .2s;
+        }
+        .team-buttons button:hover, .slicers select:hover{
+            background: rgba(255,255,255,.12);
+            transform: scale(1.02);
+        }
+        .team-buttons button.active{
+            background: var(--brand);
+            border-color: var(--brand);
+            color: white;
+        }
+        .slicers select{
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background: var(--card); /* Darker background */
+            border: 1px solid rgba(255,255,255,.2); /* Lighter border for contrast */
+            color: white; /* White text for contrast */
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="%23ffffff"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>');
+            background-repeat: no-repeat;
+            background-position: right 1.25rem center;
+            padding-right: 3rem;
+        }
+        #lost-calls-card .num {
+            font-weight: normal;
+        }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <h1>Operations Dashboard</h1>
+        <div class="sub"></div>
+
+        <!-- Team Slicer Buttons -->
+        <div class="team-buttons">
+            <button id="all-teams-btn" class="active">All Teams</button>
+            <button id="ph-team-btn" data-team="philippines">Team Philippines</button>
+            <button id="sv-team-btn" data-team="el-salvador">Team El Salvador</button>
+        </div>
+
+        <!-- Year and Month Slicers -->
+        <div class="slicers">
+            <select id="year-slicer"></select>
+            <select id="month-slicer">
+                <option value="all">All Months</option>
+                <option value="1">January</option>
+                <option value="2">February</option>
+                <option value="3">March</option>
+                <option value="4">April</option>
+                <option value="5">May</option>
+                <option value="6">June</option>
+                <option value="7">July</option>
+                <option value="8">August</option>
+                <option value="9">September</option>
+                <option value="10">October</option>
+                <option value="11">November</option>
+                <option value="12">December</option>
+            </select>
+        </div>
+
+        <!-- KPI CARDS -->
+        <div class="grid cards">
+            <!-- Daily Rates -->
+            <div class="card">
+                <h3>Daily</h3>
+                <div class="metric">
+                    <span class="label">Answer Rate</span>
+                    <span id="daily-answer" class="num">--%</span>
+                </div>
+                <div class="metric">
+                    <span class="label">Abandon Rate</span>
+                    <span id="daily-abandon" class="num">--%</span>
+                    <span id="daily-arrow" class="arrow"> </span>
+                </div>
+                <div class="row">
+                    <div class="pill">Answered: <strong id="daily-ans-cnt">0</strong></div>
+                    <div class="pill">Missed: <strong id="daily-lost-cnt">0</strong></div>
+                </div>
+            </div>
+            <!-- Weekly Rates -->
+            <div class="card">
+                <h3>Weekly</h3>
+                <div class="metric">
+                    <span class="label">Answer Rate</span>
+                    <span id="weekly-answer" class="num">--%</span>
+                </div>
+                <div class="metric">
+                    <span class="label">Abandon Rate</span>
+                    <span id="weekly-abandon" class="num">--%</span>
+                    <span id="weekly-arrow" class="arrow"> </span>
+                </div>
+                <div class="row">
+                    <div class="pill">Answered: <strong id="weekly-ans-cnt">0</strong></div>
+                    <div class="pill">Missed: <strong id="weekly-lost-cnt">0</strong></div>
+                </div>
+            </div>
+            <!-- Monthly Rates -->
+            <div class="card">
+                <h3>MTD</h3>
+                <div class="metric">
+                    <span class="label">Answer Rate</span>
+                    <span id="monthly-answer" class="num">--%</span>
+                </div>
+                <div class="metric">
+                    <span class="label">Abandon Rate</span>
+                    <span id="monthly-abandon" class="num">--%</span>
+                    <span id="monthly-arrow" class="arrow"> </span>
+                </div>
+                <div class="row">
+                    <div class="pill">Answered: <strong id="monthly-ans-cnt">0</strong></div>
+                    <div class="pill">Missed: <strong id="monthly-lost-cnt">0</strong></div>
+                </div>
+            </div>
+            <!-- Lost Calls -->
+            <div class="card" id="lost-calls-card">
+                <h3>Lost Calls (Opportunities)</h3>
+                <div class="metric">
+                    <span class="label">Daily</span>
+                    <span id="lost-calls-daily" class="num">--</span>
+                </div>
+                <div class="metric">
+                    <span class="label">Weekly</span>
+                    <span id="lost-calls-weekly" class="num">--</span>
+                </div>
+                <div class="metric">
+                    <span class="label">Monthly</span>
+                    <span id="lost-calls-monthly" class="num">--</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="grid grid2">
+            <div class="panel">
+                <div id="sales_chart"></div>
+            </div>
+            <div class="panel">
+                <div id="heatmap_chart"></div>
+            </div>
+        </div>
+
+        <div class="footer">Created By: Jiovanni Rodriguez</div>
+    </div>
+
+    <script>
+        // ===== CONFIG =====
+        // This is a placeholder. You MUST replace this URL with the one you get after deploying your Google Apps Script.
+        const APP_URL = "https://script.google.com/macros/s/AKfycbzuS-12D2tNMYDFxxoTJje86C2ogRzmzabf-PjabP4CYu4E8aByLGcSOUjraxcYh3S-bQ/exec";
+        
+        // Store the currently active team and slicer selections
+        let activeTeam = null;
+        let selectedYear = new Date().getFullYear();
+        let selectedMonth = new Date().getMonth() + 1;
+
+        // ===== GOOGLE CHARTS LOAD =====
+        google.charts.load('current', { packages: ['corechart','geochart'] });
+        google.charts.setOnLoadCallback(() => init());
+
+        // ===== UTILS =====
+        const clamp = (n,min,max)=>Math.max(min,Math.min(max,n));
+        const pct = (n)=> `${Number(n).toFixed(1)}%`;
+        const euroFmt = new Intl.NumberFormat(undefined,{style:'currency',currency:'EUR',maximumFractionDigits:0});
+
+        function colorClassForAnswerRate(r){
+            if (r >= 90) return 'good';
+            if (r >= 75) return 'warn';
+            return 'bad';
+        }
+        function colorClassForAbandonRate(r){
+            if (r < 5) return 'good';
+            if (r <= 10) return 'warn';
+            return 'bad';
+        }
+        function animateNumber(el, target, suffix=''){
+            const start = 0; const dur = 900; let st=null;
+            const step = (ts)=>{
+                if(!st) st=ts;
+                const p = clamp((ts-st)/dur,0,1);
+                el.textContent = (start + (target-start)*p).toFixed(1) + suffix;
+                if(p<1) requestAnimationFrame(step);
+            };
+            requestAnimationFrame(step);
+        }
+        function setArrow(prefix, current){
+            const key = `abandon_prev_${prefix}`;
+            const prev = localStorage.getItem(key);
+            const arrowEl = document.getElementById(`${prefix}-arrow`);
+            arrowEl.textContent = '';
+            if (prev !== null){
+                const pv = Number(prev);
+                if (current < pv) { arrowEl.textContent='📉'; arrowEl.className='arrow good'; pulse(arrowEl); }
+                else if (current > pv) { arrowEl.textContent='📈'; arrowEl.className='arrow bad'; pulse(arrowEl); }
+                else { arrowEl.textContent='➖'; arrowEl.className='arrow'; }
+            } else {
+                arrowEl.textContent='➖'; arrowEl.className='arrow';
+            }
+            localStorage.setItem(key, String(current));
+        }
+        function pulse(el){
+            el.animate([
+                { transform:'scale(1)', opacity: .9 },
+                { transform:'scale(1.25)', opacity: 1 },
+                { transform:'scale(1)', opacity: .9 }
+            ], { duration: 700, iterations: 2 });
+        }
+
+        // Populate year slicer and set up event listeners on load
+        document.addEventListener('DOMContentLoaded', () => {
+            const yearSlicer = document.getElementById('year-slicer');
+            const monthSlicer = document.getElementById('month-slicer');
+            const currentYear = new Date().getFullYear();
+            const currentMonth = new Date().getMonth() + 1;
+
+            yearSlicer.innerHTML = `<option value="all">All Years</option>`;
+            for (let y = currentYear; y >= currentYear - 5; y--) { // Go back 5 years
+                const option = document.createElement('option');
+                option.value = y;
+                option.textContent = y;
+                yearSlicer.appendChild(option);
+            }
+            yearSlicer.value = 'all'; 
+
+            monthSlicer.value = currentMonth;
+            
+            const buttons = document.querySelectorAll('.team-buttons button');
+            buttons.forEach(button => {
+                button.addEventListener('click', () => {
+                    buttons.forEach(b => b.classList.remove('active'));
+                    button.classList.add('active');
+                    activeTeam = button.getAttribute('data-team');
+                    init();
+                });
+            });
+
+            // Event listeners for new slicers
+            yearSlicer.addEventListener('change', (e) => {
+                selectedYear = e.target.value;
+                init();
+            });
+            monthSlicer.addEventListener('change', (e) => {
+                selectedMonth = e.target.value;
+                init();
+            });
+            
+            // Start the auto-refresh every 30 seconds
+            setInterval(init, 10000);
+        });
+
+        async function init(){
+            try{
+                // Single API call for all filtered data
+                const filteredParams = new URLSearchParams();
+                if (activeTeam) filteredParams.append('team', activeTeam);
+                if (selectedYear && selectedYear !== 'all') filteredParams.append('year', selectedYear);
+                if (selectedMonth && selectedMonth !== 'all') filteredParams.append('month', selectedMonth);
+                let filteredUrl = APP_URL + (filteredParams.toString() ? '?' + filteredParams.toString() : '');
+                const filteredRes = await fetch(filteredUrl);
+                const filteredData = await filteredRes.json();
+                
+                // Handle errors
+                if (filteredData.error) {
+                    console.error('API Error:', filteredData.error);
+                    alert('Failed to load dashboard data: ' + filteredData.error);
+                    return;
+                }
+
+                // === Process KPIs from the single data source ===
+                const periods = ['daily','weekly','monthly'];
+                periods.forEach(p=>{
+                    const ansEl = document.getElementById(`${p}-answer`);
+                    const abdEl = document.getElementById(`${p}-abandon`);
+                    const ansCnt = document.getElementById(`${p}-ans-cnt`);
+                    const lostCnt = document.getElementById(`${p}-lost-cnt`);
+                    
+                    const dataObj = filteredData.answerRates?.[p];
+                    
+                    if (dataObj) {
+                        const total = (dataObj.answered || 0) + (dataObj.lost || 0);
+                        const abandon = total ? (dataObj.lost / total * 100) : 0;
+                        const ansRate = total ? (dataObj.answered / total * 100) : 0;
+                        
+                        // Update counts
+                        ansCnt.textContent = dataObj.answered || 0;
+                        lostCnt.textContent = dataObj.lost || 0;
+                        
+                        // Animate and update rates
+                        ansEl.classList.remove('good','warn','bad');
+                        abdEl.classList.remove('good','warn','bad');
+                        ansEl.classList.add(colorClassForAnswerRate(ansRate));
+                        abdEl.classList.add(colorClassForAbandonRate(abandon));
+                        animateNumber(ansEl, ansRate, '%');
+                        animateNumber(abdEl, abandon, '%');
+
+                        // trend arrow (vs previous load)
+                        setArrow(p, Number(abandon.toFixed(1)));
+                    } else {
+                        // Reset the card to initial state if no data is found for the period
+                        ansCnt.textContent = '0';
+                        lostCnt.textContent = '0';
+                        ansEl.textContent = '--%';
+                        abdEl.textContent = '--%';
+                        ansEl.classList.remove('good','warn','bad');
+                        abdEl.classList.remove('good','warn','bad');
+                        document.getElementById(`${p}-arrow`).textContent = '';
+                        localStorage.removeItem(`abandon_prev_${p}`);
+                    }
+                });
+
+                // Update the new Lost Calls card using the new 'lostOpportunities' data
+                document.getElementById('lost-calls-daily').textContent = filteredData.lostOpportunities?.daily ?? '--';
+                document.getElementById('lost-calls-weekly').textContent = filteredData.lostOpportunities?.weekly ?? '--';
+                document.getElementById('lost-calls-monthly').textContent = filteredData.lostOpportunities?.monthly ?? '--';
+
+
+                // === SALES (Month on Month, €) ===
+                const salesPairs = Object.entries(filteredData.sales||{}).sort(([a],[b])=> a.localeCompare(b)); // yyyy-MM
+                const salesRows = [['Month','Sales (€)']];
+                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                
+                salesPairs.forEach(([dateKey, value]) => {
+                    if (dateKey.includes('-')) {
+                        const [year, month] = dateKey.split('-');
+                        const monthIndex = parseInt(month, 10) - 1;
+                        const monthName = monthNames[monthIndex];
+                        const label = selectedYear === 'all' ? `${monthName} ${year}` : monthName;
+                        salesRows.push([label, Number(value) || 0]);
+                    } else {
+                        salesRows.push([dateKey, Number(value) || 0]);
+                    }
+                });
+                
+                const salesDT = google.visualization.arrayToDataTable(salesRows);
+                const currencyFormatter = new google.visualization.NumberFormat({prefix:'€', groupingSymbol:',', fractionDigits:0});
+                currencyFormatter.format(salesDT, 1);
+
+                const salesChart = new google.visualization.PieChart(document.getElementById('sales_chart'));
+                salesChart.draw(salesDT, {
+                    title:'Sales by Month',
+                    titleTextStyle: {
+                        color: '#e6e9f2'
+                    },
+                    legend:{position:'bottom', textStyle:{color:'#cbd5e1'}},
+                    backgroundColor:'transparent',
+                    is3D: true,
+                    chartArea:{ left:16, right:16, top:40, bottom:50 }
+                });
+
+                // === HEATMAP (convert ISO3 -> country name for GeoChart) ===
+                const iso3Counts = filteredData.countries || {};
+                const countriesJson = await fetch('https://cdn.jsdelivr.net/npm/world-countries@4/countries.json').then(r=>r.json());
+                const iso3toName = new Map(countriesJson.map(c => [String(c.cca3).toUpperCase(), c.name.common]));
+                const geoRows = [['Country','Calls']];
+                for (const [iso3, count] of Object.entries(iso3Counts)){
+                    const name = iso3toName.get(String(iso3).toUpperCase()) || iso3;
+                    geoRows.push([name, Number(count)||0]);
+                }
+                const geoDT = google.visualization.arrayToDataTable(geoRows);
+                const geoChart = new google.visualization.GeoChart(document.getElementById('heatmap_chart'));
+                geoChart.draw(geoDT, {
+                    backgroundColor:'transparent',
+                    colorAxis:{ colors:['#63d2ff', '#ffdd55'] },
+                    datalessRegionColor:'#f0f0f0',
+                    legend:{ textStyle:{color:'#e6e9f2'} }
+                });
+
+            }catch(err){
+                // Log the full error to the console for easier debugging
+                console.error('An error occurred during API fetch or data processing:', err);
+                alert('Failed to load dashboard data. Please check the console for details.');
+            }
+        }
+    </script>
+</body>
+</html>
+
+
