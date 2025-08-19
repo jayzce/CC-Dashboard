@@ -101,6 +101,9 @@
             background-position: right 1.25rem center;
             padding-right: 3rem;
         }
+        #lost-calls-card .num {
+            font-weight: normal;
+        }
     </style>
 </head>
 <body>
@@ -137,12 +140,21 @@
 
         <!-- KPI CARDS -->
         <div class="grid cards">
-            <!-- AHT Card -->
+            <!-- Daily Rates -->
             <div class="card">
-                <h3>AHT (mins)</h3>
+                <h3>Daily</h3>
                 <div class="metric">
-                    <span id="aht-monthly" class="num big-num">--</span>
-                    <span id="aht-arrow" class="arrow"></span>
+                    <span class="label">Answer Rate</span>
+                    <span id="daily-answer" class="num">--%</span>
+                </div>
+                <div class="metric">
+                    <span class="label">Abandon Rate</span>
+                    <span id="daily-abandon" class="num">--%</span>
+                    <span id="daily-arrow" class="arrow"> </span>
+                </div>
+                <div class="row">
+                    <div class="pill">Answered: <strong id="daily-ans-cnt">0</strong></div>
+                    <div class="pill">Missed: <strong id="daily-lost-cnt">0</strong></div>
                 </div>
             </div>
             <!-- Weekly Rates -->
@@ -179,11 +191,20 @@
                     <div class="pill">Missed: <strong id="monthly-lost-cnt">0</strong></div>
                 </div>
             </div>
-            <!-- Lost Calls Card -->
+            <!-- Lost Calls -->
             <div class="card" id="lost-calls-card">
                 <h3>Lost Calls (Opportunities)</h3>
                 <div class="metric">
-                    <span id="lost-calls-monthly" class="num big-num">--</span>
+                    <span class="label">Daily</span>
+                    <span id="lost-calls-daily" class="num">--</span>
+                </div>
+                <div class="metric">
+                    <span class="label">Weekly</span>
+                    <span id="lost-calls-weekly" class="num">--</span>
+                </div>
+                <div class="metric">
+                    <span class="label">Monthly</span>
+                    <span id="lost-calls-monthly" class="num">--</span>
                 </div>
             </div>
         </div>
@@ -204,7 +225,7 @@
     <script>
         // ===== CONFIG =====
         // This is a placeholder. You MUST replace this URL with the one you get after deploying your Google Apps Script.
-        const APP_URL = "https://script.google.com/macros/s/AKfycbygjxmYPGTrgsmi6Rgr9cjj6ZbjYJcX62K60AZvmlf5nBh2Avvhw-aHS0dV22yETARKjg/exec";
+        const APP_URL = "https://script.google.com/macros/s/AKfycbzuS-12D2tNMYDFxxoTJje86C2ogRzmzabf-PjabP4CYu4E8aByLGcSOUjraxcYh3S-bQ/exec";
         
         // Store the currently active team and slicer selections
         let activeTeam = null;
@@ -219,7 +240,7 @@
         const clamp = (n,min,max)=>Math.max(min,Math.min(max,n));
         const pct = (n)=> `${Number(n).toFixed(1)}%`;
         const euroFmt = new Intl.NumberFormat(undefined,{style:'currency',currency:'EUR',maximumFractionDigits:0});
-        
+
         function colorClassForAnswerRate(r){
             if (r >= 90) return 'good';
             if (r >= 75) return 'warn';
@@ -228,14 +249,6 @@
         function colorClassForAbandonRate(r){
             if (r < 5) return 'good';
             if (r <= 10) return 'warn';
-            return 'bad';
-        }
-        // New utility for AHT color class
-        function colorClassForAHT(aht){
-            // AHT is better when it's lower. These are placeholder values.
-            // You may need to adjust them based on your goals.
-            if (aht <= 5) return 'good';
-            if (aht <= 10) return 'warn';
             return 'bad';
         }
         function animateNumber(el, target, suffix=''){
@@ -248,35 +261,21 @@
             };
             requestAnimationFrame(step);
         }
-        
-        // This function is now generalized to handle any metric
-        function setArrow(idPrefix, current, isLowerBetter = false){
-            const key = `prev_val_${idPrefix}`;
+        function setArrow(prefix, current){
+            const key = `abandon_prev_${prefix}`;
             const prev = localStorage.getItem(key);
-            const arrowEl = document.getElementById(`${idPrefix}-arrow`);
+            const arrowEl = document.getElementById(`${prefix}-arrow`);
             arrowEl.textContent = '';
-            
             if (prev !== null){
                 const pv = Number(prev);
-                if (current < pv) {
-                    arrowEl.textContent = isLowerBetter ? '📉' : '📈';
-                    arrowEl.className = isLowerBetter ? 'arrow good' : 'arrow bad';
-                    pulse(arrowEl);
-                } else if (current > pv) {
-                    arrowEl.textContent = isLowerBetter ? '📈' : '📉';
-                    arrowEl.className = isLowerBetter ? 'arrow bad' : 'arrow good';
-                    pulse(arrowEl);
-                } else {
-                    arrowEl.textContent = '➖';
-                    arrowEl.className = 'arrow';
-                }
+                if (current < pv) { arrowEl.textContent='📉'; arrowEl.className='arrow good'; pulse(arrowEl); }
+                else if (current > pv) { arrowEl.textContent='📈'; arrowEl.className='arrow bad'; pulse(arrowEl); }
+                else { arrowEl.textContent='➖'; arrowEl.className='arrow'; }
             } else {
-                arrowEl.textContent = '➖';
-                arrowEl.className = 'arrow';
+                arrowEl.textContent='➖'; arrowEl.className='arrow';
             }
             localStorage.setItem(key, String(current));
         }
-
         function pulse(el){
             el.animate([
                 { transform:'scale(1)', opacity: .9 },
@@ -345,9 +344,9 @@
                     return;
                 }
 
-                // === Process KPI Cards ===
-                // 1. Weekly and Monthly Answer/Abandon Rate cards
-                ['weekly','monthly'].forEach(p=>{
+                // === Process KPIs from the single data source ===
+                const periods = ['daily','weekly','monthly'];
+                periods.forEach(p=>{
                     const ansEl = document.getElementById(`${p}-answer`);
                     const abdEl = document.getElementById(`${p}-abandon`);
                     const ansCnt = document.getElementById(`${p}-ans-cnt`);
@@ -360,9 +359,11 @@
                         const abandon = total ? (dataObj.lost / total * 100) : 0;
                         const ansRate = total ? (dataObj.answered / total * 100) : 0;
                         
+                        // Update counts
                         ansCnt.textContent = dataObj.answered || 0;
                         lostCnt.textContent = dataObj.lost || 0;
                         
+                        // Animate and update rates
                         ansEl.classList.remove('good','warn','bad');
                         abdEl.classList.remove('good','warn','bad');
                         ansEl.classList.add(colorClassForAnswerRate(ansRate));
@@ -370,8 +371,10 @@
                         animateNumber(ansEl, ansRate, '%');
                         animateNumber(abdEl, abandon, '%');
 
-                        setArrow(`${p}-abandon`, Number(abandon.toFixed(1)), false);
+                        // trend arrow (vs previous load)
+                        setArrow(p, Number(abandon.toFixed(1)));
                     } else {
+                        // Reset the card to initial state if no data is found for the period
                         ansCnt.textContent = '0';
                         lostCnt.textContent = '0';
                         ansEl.textContent = '--%';
@@ -379,41 +382,15 @@
                         ansEl.classList.remove('good','warn','bad');
                         abdEl.classList.remove('good','warn','bad');
                         document.getElementById(`${p}-arrow`).textContent = '';
-                        localStorage.removeItem(`prev_val_${p}-abandon`);
+                        localStorage.removeItem(`abandon_prev_${p}`);
                     }
                 });
 
-                // 2. Lost Calls card
-                const lostCallsEl = document.getElementById('lost-calls-monthly');
-                const lostCallsVal = filteredData.lostOpportunities?.monthly;
+                // Update the new Lost Calls card using the new 'lostOpportunities' data
+                document.getElementById('lost-calls-daily').textContent = filteredData.lostOpportunities?.daily ?? '--';
+                document.getElementById('lost-calls-weekly').textContent = filteredData.lostOpportunities?.weekly ?? '--';
+                document.getElementById('lost-calls-monthly').textContent = filteredData.lostOpportunities?.monthly ?? '--';
 
-                if (lostCallsVal !== undefined && lostCallsVal !== null) {
-                    lostCallsEl.textContent = lostCallsVal;
-                } else {
-                    lostCallsEl.textContent = '--';
-                }
-
-                
-                // 3. NEW AHT Card
-                const ahtEl = document.getElementById('aht-monthly');
-                const ahtVal = filteredData.aht?.monthly;
-                const ahtCount = filteredData.aht?.monthly_count;
-
-                if (ahtVal !== null && ahtCount > 0) {
-                    // Update value
-                    const ahtInMins = ahtVal / 60;
-                    animateNumber(ahtEl, ahtInMins, '');
-                    // Update color based on value
-                    ahtEl.classList.remove('good','warn','bad');
-                    ahtEl.classList.add(colorClassForAHT(ahtInMins));
-                    // Update trend arrow (lower is better for AHT)
-                    setArrow('aht', Number(ahtInMins.toFixed(1)), true);
-                } else {
-                    ahtEl.textContent = '--';
-                    ahtEl.classList.remove('good','warn','bad');
-                    document.getElementById('aht-arrow').textContent = '';
-                    localStorage.removeItem('prev_val_aht');
-                }
 
                 // === SALES (Month on Month, €) ===
                 const salesPairs = Object.entries(filteredData.sales||{}).sort(([a],[b])=> a.localeCompare(b)); // yyyy-MM
@@ -463,7 +440,7 @@
                     backgroundColor:'transparent',
                     colorAxis:{ colors:['#63d2ff', '#ffdd55'] },
                     datalessRegionColor:'#f0f0f0',
-                    legend:{ textStyle:{color:'#e6e9f2', bold: false} }
+                    legend:{ textStyle:{color:'#e6e9f2'} }
                 });
 
             }catch(err){
@@ -475,4 +452,5 @@
     </script>
 </body>
 </html>
+
 
