@@ -117,35 +117,14 @@
             background-position: right 1.25rem center;
             padding-right: 3rem;
         }
-        /* New styles to center the lost calls content */
-        #lost-calls-card {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-        }
-        #lost-calls-card .metric {
-            /* Existing styles */
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            height: 100%;
-        }
-        #lost-calls-card .metric .num {
-            font-size: 54px;
-            font-weight: 800;
-            line-height: 1;
-        }
-        #lost-calls-card .metric .label {
-            display: none;
-        }
-        /* Style for heatmap chart text to make it non-bold */
+        /* Style for heatmap chart text to make it non-bold and use Inter font */
         .google-visualization-geochart-tooltip-text {
             font-weight: normal !important;
+            font-family: 'Inter', sans-serif !important;
         }
         .google-visualization-legend-text {
             font-weight: normal !important;
+            font-family: 'Inter', sans-serif !important;
         }
     </style>
 </head>
@@ -183,21 +162,12 @@
 
         <!-- KPI CARDS -->
         <div class="grid cards">
-            <!-- Daily Rates -->
-            <div class="card">
-                <h3>Daily</h3>
+            <!-- EMAILS CARD -->
+            <div class="card" id="emails-card">
+                <h3>Emails</h3>
                 <div class="metric">
-                    <span class="label">Answer Rate</span>
-                    <span id="daily-answer" class="num">--%</span>
-                </div>
-                <div class="metric">
-                    <span class="label">Abandon Rate</span>
-                    <span id="daily-abandon" class="num">--%</span>
-                    <span id="daily-arrow" class="arrow"> </span>
-                </div>
-                <div class="row">
-                    <div class="pill">Answered: <strong id="daily-ans-cnt">0</strong></div>
-                    <div class="pill">Missed: <strong id="daily-lost-cnt">0</strong></div>
+                    <span id="emails-count" class="num">--</span>
+                    <span id="emails-arrow" class="arrow"> </span>
                 </div>
             </div>
             <!-- Weekly Rates -->
@@ -265,6 +235,7 @@
         let activeTeam = null;
         let selectedYear = new Date().getFullYear();
         let selectedMonth = new Date().getMonth() + 1;
+        let previousEmailsCount = localStorage.getItem('emails_prev_count') || null;
 
         // ===== GOOGLE CHARTS LOAD =====
         google.charts.load('current', { packages: ['corechart','geochart'] });
@@ -317,6 +288,30 @@
                 { transform:'scale(1)', opacity: .9 }
             ], { duration: 700, iterations: 2 });
         }
+        function setEmailsArrow(currentCount) {
+            const arrowEl = document.getElementById('emails-arrow');
+            arrowEl.textContent = '';
+            if (previousEmailsCount !== null) {
+                const prev = Number(previousEmailsCount);
+                if (currentCount > prev) {
+                    arrowEl.textContent = '📈';
+                    arrowEl.className = 'arrow bad';
+                    pulse(arrowEl);
+                } else if (currentCount < prev) {
+                    arrowEl.textContent = '📉';
+                    arrowEl.className = 'arrow good';
+                    pulse(arrowEl);
+                } else {
+                    arrowEl.textContent = '➖';
+                    arrowEl.className = 'arrow';
+                }
+            } else {
+                arrowEl.textContent = '➖';
+                arrowEl.className = 'arrow';
+            }
+            localStorage.setItem('emails_prev_count', String(currentCount));
+            previousEmailsCount = currentCount;
+        }
 
         // Populate year slicer and set up event listeners on load
         document.addEventListener('DOMContentLoaded', () => {
@@ -356,13 +351,13 @@
                 init();
             });
             
-            // Start the auto-refresh every 30 seconds
-            setInterval(init, 30000);
+            // Start the auto-refresh every 30 minutes
+            setInterval(init, 1800000);
         });
 
         async function init(){
             try{
-                // Single API call for all filtered data
+                // First API call to get filtered data for KPIs and Heatmap
                 const filteredParams = new URLSearchParams();
                 if (activeTeam) filteredParams.append('team', activeTeam);
                 if (selectedYear && selectedYear !== 'all') filteredParams.append('year', selectedYear);
@@ -371,15 +366,22 @@
                 const filteredRes = await fetch(filteredUrl);
                 const filteredData = await filteredRes.json();
                 
+                // Second API call to get UNFILTERED sales data for the pie chart
+                const salesParams = new URLSearchParams();
+                if (activeTeam) salesParams.append('team', activeTeam);
+                let salesUrl = APP_URL + (salesParams.toString() ? '?' + salesParams.toString() : '');
+                const salesRes = await fetch(salesUrl);
+                const salesData = await salesRes.json();
+                
                 // Handle errors
-                if (filteredData.error) {
-                    console.error('API Error:', filteredData.error);
-                    alert('Failed to load dashboard data: ' + filteredData.error);
+                if (filteredData.error || salesData.error) {
+                    console.error('API Error:', filteredData.error || salesData.error);
+                    alert('Failed to load dashboard data: ' + (filteredData.error || salesData.error));
                     return;
                 }
 
                 // === Process KPIs from the single data source ===
-                const periods = ['daily','weekly','monthly'];
+                const periods = ['weekly','monthly'];
                 periods.forEach(p=>{
                     const ansEl = document.getElementById(`${p}-answer`);
                     const abdEl = document.getElementById(`${p}-abandon`);
@@ -419,12 +421,18 @@
                         localStorage.removeItem(`abandon_prev_${p}`);
                     }
                 });
+                
+                // Update the new Emails card
+                const emailsCountEl = document.getElementById('emails-count');
+                const currentEmails = filteredData.emailsCount?.monthly ?? '--';
+                emailsCountEl.textContent = currentEmails;
+                setEmailsArrow(currentEmails);
 
                 // Update the new Lost Calls card using the new 'lostOpportunities' data
                 document.getElementById('lost-calls-monthly').textContent = filteredData.lostOpportunities?.monthly ?? '--';
 
                 // === SALES (Month on Month, €) ===
-                const salesPairs = Object.entries(filteredData.sales||{}).sort(([a],[b])=> a.localeCompare(b)); // yyyy-MM
+                const salesPairs = Object.entries(salesData.sales||{}).sort(([a],[b])=> a.localeCompare(b)); // yyyy-MM
                 const salesRows = [['Month','Sales (€)']];
                 const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                 
@@ -433,7 +441,7 @@
                         const [year, month] = dateKey.split('-');
                         const monthIndex = parseInt(month, 10) - 1;
                         const monthName = monthNames[monthIndex];
-                        const label = selectedYear === 'all' ? `${monthName} ${year}` : monthName;
+                        const label = `${monthName} ${year}`;
                         salesRows.push([label, Number(value) || 0]);
                     } else {
                         salesRows.push([dateKey, Number(value) || 0]);
@@ -468,10 +476,11 @@
                 const geoDT = google.visualization.arrayToDataTable(geoRows);
                 const geoChart = new google.visualization.GeoChart(document.getElementById('heatmap_chart'));
                 geoChart.draw(geoDT, {
+                    title: 'Global Sales Heat Map',
                     backgroundColor:'transparent',
-                    colorAxis:{ colors:['#63d2ff', '#ffdd55'] },
+                    colorAxis:{ colors:['#e2e2e2', '#22c55e', '#f97316', '#ef4444', '#8b5cf6'] },
                     datalessRegionColor:'#f0f0f0',
-                    legend:{ textStyle:{color:'#e6e9f2', fontWeight: 'normal'} },
+                    legend:{ textStyle:{color:'#e6e9f2', fontWeight: 'normal', fontName: 'Inter'} },
                     textStyle: { fontWeight: 'normal', color: '#e6e9f2' }
                 });
 
