@@ -229,8 +229,8 @@
     <script>
         // ===== CONFIG =====
         // This is a placeholder. You MUST replace this URL with the one you get after deploying your Google Apps Script.
-        const APP_URL = "https://script.google.com/macros/s/AKfycbzuS-12D2tNMYDFxxoTJje86C2ogRzmzabf-PjabP4CYu4E8aByLGcSOUjraxcYh3S-bQ/exec";
-        
+        const APP_URL = "https://script.google.com/macros/s/AKfycbx5_XauhpTfn1NsJx00V1sUU0hAUsUD3cWKo8wAbLt3voDHNFdGwO6xWc1zYBwZ4ScSjg/exec";
+       
         // Store the currently active team and slicer selections
         let activeTeam = null;
         let selectedYear = new Date().getFullYear();
@@ -422,9 +422,9 @@
                     }
                 });
                 
-                // Update the new Emails card
+                // Update the Emails card with the new data from the Apps Script
                 const emailsCountEl = document.getElementById('emails-count');
-                const currentEmails = filteredData.emailsCount?.monthly ?? '--';
+                const currentEmails = filteredData.emailsCount ?? '--'; // Updated to access the new 'emailsCount' key
                 emailsCountEl.textContent = currentEmails;
                 setEmailsArrow(currentEmails);
 
