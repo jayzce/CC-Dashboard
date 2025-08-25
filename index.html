@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <title>Operations Dashboard</title>
+    <title>Railclick Operations Dashboard</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <!-- Google Charts -->
@@ -47,6 +47,20 @@
         .card h3{margin:0 0 10px; font-size:16px; color:var(--muted); text-transform:uppercase; letter-spacing:.14em}
         .metric{display:flex; align-items:center; justify-content:center; gap:8px; font-weight:800}
         .metric .num{font-size:28px}
+        .metric .label{font-size:14px; color:var(--muted); margin-right:8px}
+        
+        /* Single metric card styling for Emails, Missed Calls and Lost Calls */
+        .single-metric {
+            text-align: center;
+        }
+        .single-metric .metric {
+            justify-content: center;
+            margin-bottom: 8px;
+        }
+        .single-metric .metric .num {
+            font-size: 32px;
+        }
+        
         .row{display:flex; justify-content:center; gap:16px; flex-wrap:wrap; margin-top:8px}
         .pill{
             font-size:12px; color:var(--muted); padding:6px 10px; border-radius:999px;
@@ -163,7 +177,7 @@
         <!-- KPI CARDS -->
         <div class="grid cards">
             <!-- EMAILS CARD -->
-            <div class="card" id="emails-card">
+            <div class="card single-metric" id="emails-card">
                 <h3>Emails</h3>
                 <div class="metric">
                     <span id="emails-count" class="num">--</span>
@@ -184,6 +198,7 @@
                 </div>
                 <div class="row">
                     <div class="pill">Answered: <strong id="weekly-ans-cnt">0</strong></div>
+                    <!-- Updated the text to "Missed" -->
                     <div class="pill">Missed: <strong id="weekly-lost-cnt">0</strong></div>
                 </div>
             </div>
@@ -201,14 +216,16 @@
                 </div>
                 <div class="row">
                     <div class="pill">Answered: <strong id="monthly-ans-cnt">0</strong></div>
+                    <!-- Updated the text to "Missed" -->
                     <div class="pill">Missed: <strong id="monthly-lost-cnt">0</strong></div>
                 </div>
             </div>
             <!-- Lost Calls -->
-            <div class="card" id="lost-calls-card">
+            <div class="card single-metric" id="lost-calls-card">
                 <h3>Lost Calls</h3>
                 <div class="metric">
                     <span id="lost-calls-monthly" class="num">--</span>
+                    <span id="lost-calls-arrow" class="arrow"> </span>
                 </div>
             </div>
         </div>
@@ -236,6 +253,7 @@
         let selectedYear = new Date().getFullYear();
         let selectedMonth = new Date().getMonth() + 1;
         let previousEmailsCount = localStorage.getItem('emails_prev_count') || null;
+        let previousLostCallsCount = localStorage.getItem('lost_calls_prev_count') || null;
 
         // ===== GOOGLE CHARTS LOAD =====
         google.charts.load('current', { packages: ['corechart','geochart'] });
@@ -311,6 +329,31 @@
             }
             localStorage.setItem('emails_prev_count', String(currentCount));
             previousEmailsCount = currentCount;
+        }
+        
+        function setLostCallsArrow(currentCount) {
+            const arrowEl = document.getElementById('lost-calls-arrow');
+            arrowEl.textContent = '';
+            if (previousLostCallsCount !== null) {
+                const prev = Number(previousLostCallsCount);
+                if (currentCount > prev) {
+                    arrowEl.textContent = '📈';
+                    arrowEl.className = 'arrow bad';
+                    pulse(arrowEl);
+                } else if (currentCount < prev) {
+                    arrowEl.textContent = '📉';
+                    arrowEl.className = 'arrow good';
+                    pulse(arrowEl);
+                } else {
+                    arrowEl.textContent = '➖';
+                    arrowEl.className = 'arrow';
+                }
+            } else {
+                arrowEl.textContent = '➖';
+                arrowEl.className = 'arrow';
+            }
+            localStorage.setItem('lost_calls_prev_count', String(currentCount));
+            previousLostCallsCount = currentCount;
         }
 
         // Populate year slicer and set up event listeners on load
@@ -424,12 +467,14 @@
                 
                 // Update the Emails card with the new data from the Apps Script
                 const emailsCountEl = document.getElementById('emails-count');
-                const currentEmails = filteredData.emailsCount ?? '--'; // Updated to access the new 'emailsCount' key
+                const currentEmails = filteredData.emailsCount ?? '--';
                 emailsCountEl.textContent = currentEmails;
                 setEmailsArrow(currentEmails);
 
-                // Update the new Lost Calls card using the new 'lostOpportunities' data
-                document.getElementById('lost-calls-monthly').textContent = filteredData.lostOpportunities?.monthly ?? '--';
+                // Update the Lost Calls card with trending arrow
+                const currentLostCalls = filteredData.lostOpportunities?.monthly ?? '--';
+                document.getElementById('lost-calls-monthly').textContent = currentLostCalls;
+                setLostCallsArrow(currentLostCalls);
 
                 // === SALES (Month on Month, €) ===
                 const salesPairs = Object.entries(salesData.sales||{}).sort(([a],[b])=> a.localeCompare(b)); // yyyy-MM
@@ -493,5 +538,3 @@
     </script>
 </body>
 </html>
-
-
