@@ -4,10 +4,10 @@
     <meta charset="UTF-8" />
     <title>Railclick Operations Dashboard</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-    <!-- Google Charts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Zalando+Sans+Expanded:wght@900&display=swap" rel="stylesheet">
     <script src="https://www.gstatic.com/charts/loader.js"></script>
-
     <style>
         :root{
             --bg:#0f1221; --card:#121733; --ink:#e6e9f2; --muted:#9aa3b2;
@@ -43,12 +43,10 @@
         .card:nth-child(3){animation-delay:.16s}
         .card:nth-child(4){animation-delay:.24s}
         @keyframes pop{to{transform:none; opacity:1}}
-
         .card h3{margin:0 0 10px; font-size:16px; color:var(--muted); text-transform:uppercase; letter-spacing:.14em}
         .metric{display:flex; align-items:center; justify-content:center; gap:8px; font-weight:800}
         .metric .num{font-size:28px}
         .metric .label{font-size:14px; color:var(--muted); margin-right:8px}
-        
         /* Single metric card styling for Emails, Missed Calls and Lost Calls */
         .single-metric {
             text-align: center;
@@ -60,7 +58,6 @@
         .single-metric .metric .num {
             font-size: 32px;
         }
-        
         .row{display:flex; justify-content:center; gap:16px; flex-wrap:wrap; margin-top:8px}
         .pill{
             font-size:12px; color:var(--muted); padding:6px 10px; border-radius:999px;
@@ -90,7 +87,6 @@
                 text-shadow: 0 0 8px #8b5cf6, 0 0 12px #8b5cf6, 0 0 16px #8b5cf6, 0 0 20px #8b5cf6;
             }
         }
-        
         /* Slicer and button styles */
         .slicers, .team-buttons{
             display: flex;
@@ -140,21 +136,63 @@
             font-weight: normal !important;
             font-family: 'Inter', sans-serif !important;
         }
+        /* NEW STYLES */
+        .answered-pill {
+            background-color: #3BBBF7;
+            color: white; /* Changed to white */
+        }
+        .missed-pill {
+            background-color: #FF24EA;
+            color: white; /* Changed to white */
+        }
+        .pass {
+            color: #16A34A; /* Green */
+        }
+        .fail {
+            color: #EF4444; /* Red */
+        }
+        /* New H1 font style */
+        h1 {
+            font-family: 'Zalando Sans Expanded', sans-serif;
+            font-weight: 900;
+        }
+
+/* ... other styles ... */
+.card {
+    /* Existing styles for the card */
+    background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.35);
+    backdrop-filter: blur(6px);
+    transform: translateY(10px);
+    opacity: 0;
+    animation: pop .6s ease-out forwards;
+    /* Added for scale effect */
+    transition: transform 0.3s ease-in-out;
+    will-change: transform;
+}
+.card:hover {
+    /* Added for scale effect */
+    transform: scale(1.02);
+}
+/* ... other styles ... */
+
+
+<div class="card">
+    </div>
     </style>
 </head>
 <body>
     <div class="wrap">
         <h1>Railclick Operations Dashboard</h1>
         <div class="sub"></div>
-
-        <!-- Team Slicer Buttons -->
         <div class="team-buttons">
             <button id="all-teams-btn" class="active">All Teams</button>
             <button id="ph-team-btn" data-team="philippines">Team Philippines</button>
             <button id="sv-team-btn" data-team="el-salvador">Team El Salvador</button>
         </div>
-
-        <!-- Year and Month Slicers -->
         <div class="slicers">
             <select id="year-slicer"></select>
             <select id="month-slicer">
@@ -173,10 +211,7 @@
                 <option value="12">December</option>
             </select>
         </div>
-
-        <!-- KPI CARDS -->
         <div class="grid cards">
-            <!-- EMAILS CARD -->
             <div class="card single-metric" id="emails-card">
                 <h3>Emails</h3>
                 <div class="metric">
@@ -184,7 +219,6 @@
                     <span id="emails-arrow" class="arrow"> </span>
                 </div>
             </div>
-            <!-- Weekly Rates -->
             <div class="card">
                 <h3>Weekly</h3>
                 <div class="metric">
@@ -197,12 +231,10 @@
                     <span id="weekly-arrow" class="arrow"> </span>
                 </div>
                 <div class="row">
-                    <div class="pill">Answered: <strong id="weekly-ans-cnt">0</strong></div>
-                    <!-- Updated the text to "Missed" -->
-                    <div class="pill">Missed: <strong id="weekly-lost-cnt">0</strong></div>
+                    <div class="pill answered-pill">Answered: <strong id="weekly-ans-cnt">0</strong></div>
+                    <div class="pill missed-pill">Missed: <strong id="weekly-lost-cnt">0</strong></div>
                 </div>
             </div>
-            <!-- Monthly Rates -->
             <div class="card">
                 <h3>MTD</h3>
                 <div class="metric">
@@ -215,12 +247,10 @@
                     <span id="monthly-arrow" class="arrow"> </span>
                 </div>
                 <div class="row">
-                    <div class="pill">Answered: <strong id="monthly-ans-cnt">0</strong></div>
-                    <!-- Updated the text to "Missed" -->
-                    <div class="pill">Missed: <strong id="monthly-lost-cnt">0</strong></div>
+                    <div class="pill answered-pill">Answered: <strong id="monthly-ans-cnt">0</strong></div>
+                    <div class="pill missed-pill">Missed: <strong id="monthly-lost-cnt">0</strong></div>
                 </div>
             </div>
-            <!-- Lost Calls -->
             <div class="card single-metric" id="lost-calls-card">
                 <h3>Lost Calls</h3>
                 <div class="metric">
@@ -229,8 +259,6 @@
                 </div>
             </div>
         </div>
-
-        <!-- Charts -->
         <div class="grid grid2">
             <div class="panel">
                 <div id="sales_chart"></div>
@@ -239,35 +267,29 @@
                 <div id="heatmap_chart"></div>
             </div>
         </div>
-
         <div class="footer">Created by: Jiovanni Carlo Rodriguez</div>
     </div>
-
     <script>
         // ===== CONFIG =====
         // This is a placeholder. You MUST replace this URL with the one you get after deploying your Google Apps Script.
         const APP_URL = "https://script.google.com/macros/s/AKfycbx5_XauhpTfn1NsJx00V1sUU0hAUsUD3cWKo8wAbLt3voDHNFdGwO6xWc1zYBwZ4ScSjg/exec";
-       
+        
         // Store the currently active team and slicer selections
         let activeTeam = null;
         let selectedYear = new Date().getFullYear();
         let selectedMonth = new Date().getMonth() + 1;
         let previousEmailsCount = localStorage.getItem('emails_prev_count') || null;
         let previousLostCallsCount = localStorage.getItem('lost_calls_prev_count') || null;
-
         // ===== GOOGLE CHARTS LOAD =====
         google.charts.load('current', { packages: ['corechart','geochart'] });
         google.charts.setOnLoadCallback(() => init());
-
         // ===== UTILS =====
         const clamp = (n,min,max)=>Math.max(min,Math.min(max,n));
         const pct = (n)=> `${Number(n).toFixed(1)}%`;
         const euroFmt = new Intl.NumberFormat(undefined,{style:'currency',currency:'EUR',maximumFractionDigits:0});
-
         function colorClassForAnswerRate(r){
-            if (r >= 90) return 'good';
-            if (r >= 75) return 'warn';
-            return 'bad';
+            if (r >= 80) return 'pass';
+            return 'fail';
         }
         function colorClassForAbandonRate(r){
             if (r < 5) return 'good';
@@ -355,14 +377,12 @@
             localStorage.setItem('lost_calls_prev_count', String(currentCount));
             previousLostCallsCount = currentCount;
         }
-
         // Populate year slicer and set up event listeners on load
         document.addEventListener('DOMContentLoaded', () => {
             const yearSlicer = document.getElementById('year-slicer');
             const monthSlicer = document.getElementById('month-slicer');
             const currentYear = new Date().getFullYear();
             const currentMonth = new Date().getMonth() + 1;
-
             yearSlicer.innerHTML = `<option value="all">All Years</option>`;
             for (let y = currentYear; y >= currentYear - 5; y--) { // Go back 5 years
                 const option = document.createElement('option');
@@ -371,7 +391,6 @@
                 yearSlicer.appendChild(option);
             }
             yearSlicer.value = 'all'; 
-
             monthSlicer.value = currentMonth;
             
             const buttons = document.querySelectorAll('.team-buttons button');
@@ -383,7 +402,6 @@
                     init();
                 });
             });
-
             // Event listeners for new slicers
             yearSlicer.addEventListener('change', (e) => {
                 selectedYear = e.target.value;
@@ -397,7 +415,6 @@
             // Start the auto-refresh every 30 minutes
             setInterval(init, 1800000);
         });
-
         async function init(){
             try{
                 // First API call to get filtered data for KPIs and Heatmap
@@ -422,7 +439,6 @@
                     alert('Failed to load dashboard data: ' + (filteredData.error || salesData.error));
                     return;
                 }
-
                 // === Process KPIs from the single data source ===
                 const periods = ['weekly','monthly'];
                 periods.forEach(p=>{
@@ -443,13 +459,12 @@
                         lostCnt.textContent = dataObj.lost || 0;
                         
                         // Animate and update rates
-                        ansEl.classList.remove('good','warn','bad');
+                        ansEl.classList.remove('pass','fail'); // Updated class list
                         abdEl.classList.remove('good','warn','bad');
                         ansEl.classList.add(colorClassForAnswerRate(ansRate));
                         abdEl.classList.add(colorClassForAbandonRate(abandon));
                         animateNumber(ansEl, ansRate, '%');
                         animateNumber(abdEl, abandon, '%');
-
                         // trend arrow (vs previous load)
                         setArrow(p, Number(abandon.toFixed(1)));
                     } else {
@@ -458,7 +473,7 @@
                         lostCnt.textContent = '0';
                         ansEl.textContent = '--%';
                         abdEl.textContent = '--%';
-                        ansEl.classList.remove('good','warn','bad');
+                        ansEl.classList.remove('pass','fail'); // Updated class list
                         abdEl.classList.remove('good','warn','bad');
                         document.getElementById(`${p}-arrow`).textContent = '';
                         localStorage.removeItem(`abandon_prev_${p}`);
@@ -470,12 +485,10 @@
                 const currentEmails = filteredData.emailsCount ?? '--';
                 emailsCountEl.textContent = currentEmails;
                 setEmailsArrow(currentEmails);
-
                 // Update the Lost Calls card with trending arrow
                 const currentLostCalls = filteredData.lostOpportunities?.monthly ?? '--';
                 document.getElementById('lost-calls-monthly').textContent = currentLostCalls;
                 setLostCallsArrow(currentLostCalls);
-
                 // === SALES (Month on Month, €) ===
                 const salesPairs = Object.entries(salesData.sales||{}).sort(([a],[b])=> a.localeCompare(b)); // yyyy-MM
                 const salesRows = [['Month','Sales (€)']];
@@ -496,7 +509,6 @@
                 const salesDT = google.visualization.arrayToDataTable(salesRows);
                 const currencyFormatter = new google.visualization.NumberFormat({prefix:'€', groupingSymbol:',', fractionDigits:0});
                 currencyFormatter.format(salesDT, 1);
-
                 const salesChart = new google.visualization.PieChart(document.getElementById('sales_chart'));
                 salesChart.draw(salesDT, {
                     title:'Sales by Month',
@@ -508,7 +520,6 @@
                     is3D: true,
                     chartArea:{ left:16, right:16, top:40, bottom:50 }
                 });
-
                 // === HEATMAP (convert ISO3 -> country name for GeoChart) ===
                 const iso3Counts = filteredData.countries || {};
                 const countriesJson = await fetch('https://cdn.jsdelivr.net/npm/world-countries@4/countries.json').then(r=>r.json());
@@ -528,7 +539,6 @@
                     legend:{ textStyle:{color:'#e6e9f2', fontWeight: 'normal', fontName: 'Inter'} },
                     textStyle: { fontWeight: 'normal', color: '#e6e9f2' }
                 });
-
             }catch(err){
                 // Log the full error to the console for easier debugging
                 console.error('An error occurred during API fetch or data processing:', err);
@@ -538,4 +548,3 @@
     </script>
 </body>
 </html>
-
