@@ -43,18 +43,24 @@
         .card:nth-child(4){animation-delay:.24s}
         @keyframes pop{to{transform:none; opacity:1}}
 
-        .card h3{margin:0 0 10px; font-size:16px; color:var(--muted); text-transform:uppercase; letter-spacing:.14em}
+        .card h3{
+            margin:0 0 10px; font-size:16px; color:var(--muted); text-transform:uppercase; letter-spacing:.14em;
+            text-align: center;
+        }
         .metric{display:flex; align-items:center; justify-content:center; gap:8px; font-weight:800}
         .metric .num{font-size:28px}
         .metric .label{font-size:14px; color:var(--muted); margin-right:8px}
         
-        /* Single metric card styling for Emails, Missed Calls and Lost Calls */
+        /* Single metric card styling for Emails and Lost Calls */
         .single-metric {
             text-align: center;
         }
         .single-metric .metric {
-            justify-content: center;
-            margin-bottom: 8px;
+            height: 100%; /* Make the container take full height */
+            display: flex;
+            flex-direction: column; /* Stack items vertically */
+            justify-content: center; /* Center horizontally */
+            align-items: center; /* Center vertically */
         }
         .single-metric .metric .num {
             font-size: 32px;
